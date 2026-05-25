@@ -1,0 +1,1060 @@
+[
+  {
+    "id": "diff_drive_reach_target",
+    "title": "Differential Drive: Reach Target",
+    "difficulty": "beginner",
+    "description": "Drive a 12 inch-class differential-drive robot from a randomized start pose to a target region without hitting obstacles or leaving the arena.",
+    "robot": {
+      "type": "differential_drive",
+      "model": "differential_drive_cube_v1",
+      "footprint_length_m": 0.30479999999999996,
+      "footprint_width_m": 0.30479999999999996,
+      "height_m": 0.30479999999999996,
+      "wheel_base_m": 0.2667,
+      "wheel_radius_m": 0.06604,
+      "wheel_width_m": 0.035559999999999994,
+      "radius_m": 0.21552614690565966,
+      "max_wheel_velocity_mps": 1.25,
+      "cameras": [
+        {
+          "name": "front_camera",
+          "frame": "front_camera",
+          "fov_y_deg": 120.0,
+          "width": 384,
+          "height": 240,
+          "xyz_m": {
+            "x": 0.1644,
+            "y": 0.0,
+            "z": 0.17678399999999997
+          },
+          "xyaxes": "0 -1 0 0 0 1"
+        }
+      ],
+      "lidars": [
+        {
+          "name": "lidar_2d_top",
+          "frame": "lidar_2d_top",
+          "fov_deg": 360.0,
+          "num_rays": 360,
+          "max_range_m": 6.0,
+          "xyz_m": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.3228
+          }
+        }
+      ]
+    },
+    "sensors": [
+      "ground_truth_pose",
+      "target_relative_pose",
+      "obstacle_map",
+      "lidar_2d_360"
+    ],
+    "actuators": [
+      "left_wheel_velocity",
+      "right_wheel_velocity"
+    ],
+    "objective": "Reach the target disk as quickly and smoothly as possible.",
+    "success_conditions": {
+      "target_tolerance_m": 0.22,
+      "collision_count": 0,
+      "timeout_sec": 20.0
+    },
+    "scoring": {
+      "success": "55 points for reaching the target without collisions",
+      "time": "20 points scaled by time remaining",
+      "safety": "15 points minus collision penalties",
+      "smoothness": "5 points for low control jerk",
+      "energy": "5 points for low wheel effort"
+    },
+    "defaults": {
+      "evaluation_seed": 4,
+      "dt_sec": 0.05,
+      "max_steps": 400,
+      "arena_bounds_m": {
+        "x_min": -2.5,
+        "x_max": 2.5,
+        "y_min": -2.0,
+        "y_max": 2.0
+      }
+    }
+  },
+  {
+    "id": "diff_drive_odometry",
+    "title": "Differential Drive: Build Odometry",
+    "difficulty": "beginner",
+    "description": "Estimate a differential-drive robot pose from cumulative wheel encoder ticks and gyro yaw-rate samples while the environment drives a seeded calibration course.",
+    "robot": {
+      "type": "differential_drive",
+      "model": "differential_drive_cube_v1",
+      "footprint_length_m": 0.30479999999999996,
+      "footprint_width_m": 0.30479999999999996,
+      "height_m": 0.30479999999999996,
+      "wheel_base_m": 0.2667,
+      "wheel_radius_m": 0.06604,
+      "wheel_width_m": 0.035559999999999994,
+      "radius_m": 0.21552614690565966,
+      "max_wheel_velocity_mps": 1.25,
+      "cameras": [
+        {
+          "name": "front_camera",
+          "frame": "front_camera",
+          "fov_y_deg": 120.0,
+          "width": 384,
+          "height": 240,
+          "xyz_m": {
+            "x": 0.1644,
+            "y": 0.0,
+            "z": 0.17678399999999997
+          },
+          "xyaxes": "0 -1 0 0 0 1"
+        }
+      ],
+      "lidars": [
+        {
+          "name": "lidar_2d_top",
+          "frame": "lidar_2d_top",
+          "fov_deg": 360.0,
+          "num_rays": 360,
+          "max_range_m": 6.0,
+          "xyz_m": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.3228
+          }
+        }
+      ]
+    },
+    "sensors": [
+      "wheel_encoders",
+      "imu"
+    ],
+    "actuators": [
+      "odometry_estimate"
+    ],
+    "objective": "Maintain an odometry estimate in the episode-start frame without reading solved pose. The environment drives a seeded calibration trajectory; the submitted policy must submit a Pose2d estimate every step.",
+    "success_conditions": {
+      "final_position_error_m": 0.12,
+      "mean_position_error_m": 0.08,
+      "final_yaw_error_rad": 0.08726646259971647,
+      "collision_count": 0,
+      "timeout_sec": 14.0
+    },
+    "scoring": {
+      "final_position": "35 points for low final translational odometry error",
+      "trajectory_position": "35 points for low mean translational trajectory error",
+      "yaw": "25 points for low final and mean yaw error",
+      "safety": "5 points for the environment trajectory staying in bounds"
+    },
+    "defaults": {
+      "runner": "diff_drive_odometry",
+      "evaluation_seed": 7,
+      "dt_sec": 0.05,
+      "max_steps": 280,
+      "ticks_per_rev": 392,
+      "encoder_quantization": "nearest_tick",
+      "gyro_noise_std_radps": 0.003,
+      "gyro_bias_range_radps": 0.0015,
+      "wheel_slip_scale_range": 0.004,
+      "trajectory_profile": "seeded_calibration_arc",
+      "arena_bounds_m": {
+        "x_min": -4.0,
+        "x_max": 4.0,
+        "y_min": -3.0,
+        "y_max": 3.0
+      }
+    }
+  },
+  {
+    "id": "diff_drive_state_estimation",
+    "title": "Differential Drive: AprilTag State Estimation",
+    "difficulty": "intermediate",
+    "description": "Fuse drivetrain encoder ticks, gyro yaw rate, and intermittent noisy AprilTag field-pose measurements into a robust 2D robot pose estimate.",
+    "robot": {
+      "type": "differential_drive",
+      "model": "differential_drive_cube_v1",
+      "footprint_length_m": 0.30479999999999996,
+      "footprint_width_m": 0.30479999999999996,
+      "height_m": 0.30479999999999996,
+      "wheel_base_m": 0.2667,
+      "wheel_radius_m": 0.06604,
+      "wheel_width_m": 0.035559999999999994,
+      "radius_m": 0.21552614690565966,
+      "max_wheel_velocity_mps": 1.25,
+      "cameras": [
+        {
+          "name": "front_camera",
+          "frame": "front_camera",
+          "fov_y_deg": 120.0,
+          "width": 384,
+          "height": 240,
+          "xyz_m": {
+            "x": 0.1644,
+            "y": 0.0,
+            "z": 0.17678399999999997
+          },
+          "xyaxes": "0 -1 0 0 0 1"
+        }
+      ],
+      "lidars": [
+        {
+          "name": "lidar_2d_top",
+          "frame": "lidar_2d_top",
+          "fov_deg": 360.0,
+          "num_rays": 360,
+          "max_range_m": 6.0,
+          "xyz_m": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.3228
+          }
+        }
+      ]
+    },
+    "sensors": [
+      "wheel_encoders",
+      "imu",
+      "april_tag_pose_estimate"
+    ],
+    "actuators": [
+      "odometry_estimate"
+    ],
+    "objective": "Maintain a Pose2d estimate in the episode-start field frame while the environment drives the course. The submitted policy must account for wheel slip, vision latency, dropouts, and distance-dependent tag noise.",
+    "success_conditions": {
+      "final_position_error_m": 0.09,
+      "mean_position_error_m": 0.07,
+      "final_yaw_error_rad": 0.06981317007977318,
+      "collision_count": 0,
+      "timeout_sec": 16.0
+    },
+    "scoring": {
+      "final_position": "35 points for low final fused-pose error",
+      "trajectory_position": "35 points for low mean trajectory error",
+      "yaw": "25 points for low final and mean yaw error",
+      "safety": "5 points for the environment trajectory staying in bounds"
+    },
+    "defaults": {
+      "runner": "diff_drive_state_estimation",
+      "evaluation_seed": 11,
+      "dt_sec": 0.05,
+      "max_steps": 320,
+      "ticks_per_rev": 392,
+      "encoder_quantization": "nearest_tick",
+      "gyro_noise_std_radps": 0.006,
+      "gyro_bias_range_radps": 0.0035,
+      "wheel_slip_scale_range": 0.018,
+      "trajectory_profile": "seeded_tag_sweep",
+      "april_tag_update_interval_sec": 0.1,
+      "april_tag_latency_sec": 0.12,
+      "april_tag_max_range_m": 3.4,
+      "april_tag_position_base_std_m": 0.012,
+      "april_tag_position_distance_quadratic_std_m": 0.006,
+      "april_tag_position_view_angle_std_m": 0.02,
+      "april_tag_yaw_base_std_rad": 0.026179938779914945,
+      "april_tag_yaw_distance_quadratic_std_rad": 0.009599310885968814,
+      "april_tag_yaw_view_angle_std_rad": 0.04363323129985824,
+      "april_tag_view_angle_limit_deg": 78.0,
+      "arena_bounds_m": {
+        "x_min": -0.75,
+        "x_max": 4.25,
+        "y_min": -2.1,
+        "y_max": 2.1
+      }
+    }
+  },
+  {
+    "id": "diff_drive_2d_slam",
+    "title": "Differential Drive: 2D SLAM",
+    "difficulty": "advanced",
+    "description": "Build a consistent 2D map and final pose estimate from wheel encoders, biased gyro yaw rate, and noisy 360-degree lidar while a differential-drive robot traverses a long loop.",
+    "robot": {
+      "type": "differential_drive",
+      "model": "differential_drive_cube_v1",
+      "footprint_length_m": 0.30479999999999996,
+      "footprint_width_m": 0.30479999999999996,
+      "height_m": 0.30479999999999996,
+      "wheel_base_m": 0.2667,
+      "wheel_radius_m": 0.06604,
+      "wheel_width_m": 0.035559999999999994,
+      "radius_m": 0.21552614690565966,
+      "max_wheel_velocity_mps": 1.25,
+      "cameras": [
+        {
+          "name": "front_camera",
+          "frame": "front_camera",
+          "fov_y_deg": 120.0,
+          "width": 384,
+          "height": 240,
+          "xyz_m": {
+            "x": 0.1644,
+            "y": 0.0,
+            "z": 0.17678399999999997
+          },
+          "xyaxes": "0 -1 0 0 0 1"
+        }
+      ],
+      "lidars": [
+        {
+          "name": "lidar_2d_top",
+          "frame": "lidar_2d_top",
+          "fov_deg": 360.0,
+          "num_rays": 360,
+          "max_range_m": 6.0,
+          "xyz_m": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.3228
+          }
+        }
+      ]
+    },
+    "sensors": [
+      "wheel_encoders",
+      "imu",
+      "lidar_2d_360"
+    ],
+    "actuators": [
+      "slam_estimate"
+    ],
+    "objective": "Submit a Pose2d estimate and a field-frame occupied-point map each step. A dead-reckoned map from wheel odometry drifts over the loop; successful policies need scan matching, pose-graph loop closure, a filter, or an equivalent correction strategy.",
+    "success_conditions": {
+      "final_pose_error_m": 0.18,
+      "final_yaw_error_rad": 0.13962634015954636,
+      "map_chamfer_error_m": 0.08,
+      "map_coverage_ratio": 0.72,
+      "map_false_positive_ratio": 0.2,
+      "map_coverage_radius_m": 0.18,
+      "map_false_positive_radius_m": 0.28,
+      "collision_count": 0,
+      "timeout_sec": 42.0
+    },
+    "scoring": {
+      "final_pose": "20 points for closing the loop near the start pose",
+      "yaw": "10 points for final heading consistency",
+      "map_accuracy": "35 points for low Chamfer distance to visible occupied surfaces",
+      "map_coverage": "25 points for covering enough of the walls and landmark posts",
+      "map_precision": "10 points for avoiding smeared false-positive map points",
+      "safety": "5 bonus points for no arena or landmark contacts"
+    },
+    "defaults": {
+      "runner": "diff_drive_slam",
+      "evaluation_seed": 13,
+      "dt_sec": 0.05,
+      "max_steps": 840,
+      "render_interval_sec": 0.5,
+      "ticks_per_rev": 392,
+      "trajectory_profile": "closed_lissajous_loop",
+      "trajectory_amplitude_x_m": 2.05,
+      "trajectory_amplitude_y_m": 0.95,
+      "encoder_scale_error_range": 0.022,
+      "gyro_noise_std_radps": 0.004,
+      "gyro_bias_range_radps": 0.01,
+      "lidar_noise_std_m": 0.012,
+      "lidar_quantization_m": 0.005,
+      "max_map_points": 1600,
+      "submitted_map_grid_m": 0.07,
+      "ground_truth_map_grid_m": 0.08,
+      "ground_truth_map_stride_steps": 4,
+      "ground_truth_max_map_points": 2400,
+      "landmark_jitter_m": 0.035,
+      "arena_bounds_m": {
+        "x_min": -3.0,
+        "x_max": 3.0,
+        "y_min": -2.35,
+        "y_max": 2.35
+      }
+    }
+  },
+  {
+    "id": "dock_to_charger",
+    "title": "Dock to Charging Pad",
+    "difficulty": "intermediate",
+    "description": "Servo a 12 inch-class differential-drive robot into a charging bay using a noisy front-camera marker pose estimate, wheel encoders, and gyro yaw rate.",
+    "robot": {
+      "type": "differential_drive",
+      "model": "differential_drive_cube_v1",
+      "footprint_length_m": 0.30479999999999996,
+      "footprint_width_m": 0.30479999999999996,
+      "height_m": 0.30479999999999996,
+      "wheel_base_m": 0.2667,
+      "wheel_radius_m": 0.06604,
+      "wheel_width_m": 0.035559999999999994,
+      "radius_m": 0.21552614690565966,
+      "max_wheel_velocity_mps": 1.25,
+      "cameras": [
+        {
+          "name": "front_camera",
+          "frame": "front_camera",
+          "fov_y_deg": 120.0,
+          "width": 384,
+          "height": 240,
+          "xyz_m": {
+            "x": 0.1644,
+            "y": 0.0,
+            "z": 0.17678399999999997
+          },
+          "xyaxes": "0 -1 0 0 0 1"
+        }
+      ],
+      "lidars": [
+        {
+          "name": "lidar_2d_top",
+          "frame": "lidar_2d_top",
+          "fov_deg": 360.0,
+          "num_rays": 360,
+          "max_range_m": 6.0,
+          "xyz_m": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.3228
+          }
+        }
+      ]
+    },
+    "sensors": [
+      "front_camera_120deg",
+      "wheel_encoders",
+      "imu",
+      "charger_pose_estimate"
+    ],
+    "actuators": [
+      "left_wheel_velocity",
+      "right_wheel_velocity"
+    ],
+    "objective": "Approach the charging pad and finish within tight position and yaw tolerances without touching the bay.",
+    "success_conditions": {
+      "position_tolerance_m": 0.05,
+      "yaw_tolerance_rad": 0.05235987755982989,
+      "collision_count": 0,
+      "timeout_sec": 25.0
+    },
+    "scoring": {
+      "success": "60 points for docking within position and yaw tolerances without collisions",
+      "alignment": "15 points for final yaw alignment",
+      "time": "10 points scaled by time remaining",
+      "safety": "10 points minus collision penalties",
+      "smoothness_energy": "5 points for low wheel effort and command jerk"
+    },
+    "defaults": {
+      "evaluation_seed": 4,
+      "dt_sec": 0.05,
+      "max_steps": 500,
+      "scenario": "dock_to_charger",
+      "ticks_per_rev": 392,
+      "arena_bounds_m": {
+        "x_min": -2.25,
+        "x_max": 1.85,
+        "y_min": -1.25,
+        "y_max": 1.25
+      }
+    }
+  },
+  {
+    "id": "warehouse_aisle_avoidance",
+    "title": "Warehouse Aisle Avoidance",
+    "difficulty": "intermediate",
+    "description": "Guide a 12 inch-class differential-drive warehouse robot through a seeded pallet aisle, following route waypoints while avoiding rack posts, pallet intrusions, and arena bounds.",
+    "robot": {
+      "type": "differential_drive",
+      "model": "differential_drive_cube_v1",
+      "footprint_length_m": 0.30479999999999996,
+      "footprint_width_m": 0.30479999999999996,
+      "height_m": 0.30479999999999996,
+      "wheel_base_m": 0.2667,
+      "wheel_radius_m": 0.06604,
+      "wheel_width_m": 0.035559999999999994,
+      "radius_m": 0.21552614690565966,
+      "max_wheel_velocity_mps": 1.25,
+      "cameras": [
+        {
+          "name": "front_camera",
+          "frame": "front_camera",
+          "fov_y_deg": 120.0,
+          "width": 384,
+          "height": 240,
+          "xyz_m": {
+            "x": 0.1644,
+            "y": 0.0,
+            "z": 0.17678399999999997
+          },
+          "xyaxes": "0 -1 0 0 0 1"
+        }
+      ],
+      "lidars": [
+        {
+          "name": "lidar_2d_top",
+          "frame": "lidar_2d_top",
+          "fov_deg": 360.0,
+          "num_rays": 360,
+          "max_range_m": 6.0,
+          "xyz_m": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.3228
+          }
+        }
+      ]
+    },
+    "sensors": [
+      "ground_truth_pose",
+      "target_relative_pose",
+      "route_waypoints",
+      "obstacle_map",
+      "lidar_2d_360"
+    ],
+    "actuators": [
+      "left_wheel_velocity",
+      "right_wheel_velocity"
+    ],
+    "objective": "Reach the end of the aisle without contacting racks, pallets, or walls.",
+    "success_conditions": {
+      "target_tolerance_m": 0.24,
+      "collision_count": 0,
+      "timeout_sec": 26.0,
+      "min_clearance_m": 0.08
+    },
+    "scoring": {
+      "success": "55 points for reaching the aisle exit without collisions",
+      "time": "20 points scaled by time remaining",
+      "safety": "15 points minus collision penalties",
+      "smoothness": "5 points for low wheel command jerk",
+      "energy": "5 points for low wheel effort"
+    },
+    "defaults": {
+      "evaluation_seed": 6,
+      "dt_sec": 0.05,
+      "max_steps": 520,
+      "scenario": "warehouse_aisle_avoidance",
+      "arena_bounds_m": {
+        "x_min": -3.25,
+        "x_max": 3.25,
+        "y_min": -1.65,
+        "y_max": 1.65
+      }
+    }
+  },
+  {
+    "id": "imu_collision_detection",
+    "title": "IMU Collision Detection",
+    "difficulty": "intermediate",
+    "description": "Classify a hidden contact event from noisy IMU samples while a 12 inch-class mobile probe drives through a seeded MuJoCo collision course.",
+    "robot": {
+      "type": "differential_drive",
+      "model": "differential_drive_cube_v1",
+      "footprint_length_m": 0.30479999999999996,
+      "footprint_width_m": 0.30479999999999996,
+      "height_m": 0.30479999999999996,
+      "wheel_base_m": 0.2667,
+      "wheel_radius_m": 0.06604,
+      "wheel_width_m": 0.035559999999999994,
+      "radius_m": 0.21552614690565966,
+      "max_wheel_velocity_mps": 1.25,
+      "cameras": [
+        {
+          "name": "front_camera",
+          "frame": "front_camera",
+          "fov_y_deg": 120.0,
+          "width": 384,
+          "height": 240,
+          "xyz_m": {
+            "x": 0.1644,
+            "y": 0.0,
+            "z": 0.17678399999999997
+          },
+          "xyaxes": "0 -1 0 0 0 1"
+        }
+      ],
+      "lidars": [
+        {
+          "name": "lidar_2d_top",
+          "frame": "lidar_2d_top",
+          "fov_deg": 360.0,
+          "num_rays": 360,
+          "max_range_m": 6.0,
+          "xyz_m": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.3228
+          }
+        }
+      ]
+    },
+    "sensors": [
+      "imu_acceleration"
+    ],
+    "actuators": [
+      "collision_event"
+    ],
+    "objective": "Detect the first physical contact from inertial measurements with low latency and no false positives.",
+    "success_conditions": {
+      "recall": 1.0,
+      "false_positive_count": 0,
+      "latency_sec": 0.08,
+      "timeout_sec": 4.0
+    },
+    "scoring": {
+      "detection": "60 points for detecting the seeded contact event",
+      "latency": "20 points scaled by response time under the 80 ms limit",
+      "precision": "20 points minus false-positive penalties"
+    },
+    "defaults": {
+      "runner": "imu_collision",
+      "evaluation_seed": 7,
+      "dt_sec": 0.05,
+      "max_steps": 80,
+      "post_collision_sec": 0.5,
+      "arena_bounds_m": {
+        "x_min": -2.2,
+        "x_max": 2.0,
+        "y_min": -1.2,
+        "y_max": 1.2
+      }
+    }
+  },
+  {
+    "id": "motor_torque_scale_control",
+    "title": "Motor Torque: Press Scale",
+    "difficulty": "intermediate",
+    "description": "Control a current-driven motor on a bench fixture so its shaft presses a digital scale to a seeded target force without overshoot.",
+    "robot": {
+      "type": "motor_stand",
+      "model": "motor_stand_scale_v1",
+      "shaft_length_m": 0.18,
+      "shaft_radius_m": 0.008,
+      "kt_nm_per_amp": 0.041,
+      "max_current_a": 6.0,
+      "current_time_constant_sec": 0.08,
+      "scale_time_constant_sec": 0.12,
+      "scale_stiffness_n_per_m": 1400.0,
+      "max_force_n": 1.35,
+      "base_length_m": 0.36,
+      "base_width_m": 0.2,
+      "base_height_m": 0.035,
+      "scale_plate_width_m": 0.13,
+      "scale_plate_depth_m": 0.11
+    },
+    "sensors": [
+      "target_force",
+      "motor_current",
+      "scale_force"
+    ],
+    "actuators": [
+      "current_command"
+    ],
+    "objective": "Regulate the shaft-tip force on the scale using only current and force feedback.",
+    "success_conditions": {
+      "force_tolerance_n": 0.2,
+      "overshoot_pct": 8.0,
+      "settling_time_sec": 1.5,
+      "timeout_sec": 5.0,
+      "target_force_range_n": [
+        0.82,
+        1.08
+      ]
+    },
+    "scoring": {
+      "force_accuracy": "45 points for low steady-state scale-force error",
+      "settling": "20 points for reaching tolerance quickly",
+      "overshoot": "15 points for limiting peak force above target",
+      "smoothness": "10 points for low current jerk",
+      "energy": "10 points for low current effort"
+    },
+    "defaults": {
+      "evaluation_seed": 5,
+      "dt_sec": 0.02,
+      "max_steps": 250,
+      "render_interval_sec": 0.1
+    }
+  },
+  {
+    "id": "quadrotor_gate_sequence",
+    "title": "Quadrotor: Gate Sequence",
+    "difficulty": "advanced",
+    "description": "Fly a small quadrotor through a seeded sequence of vertical gates using world-frame pose, altitude, next-gate geometry, and body-frame angular-rate plus power commands.",
+    "robot": {
+      "type": "quadrotor",
+      "model": "quadrotor_x500_v1",
+      "footprint_length_m": 0.45,
+      "footprint_width_m": 0.45,
+      "height_m": 0.07,
+      "radius_m": 0.16,
+      "mass_kg": 1.15,
+      "arm_length_m": 0.225,
+      "hover_power": 0.5,
+      "max_power": 1.0,
+      "max_body_rate_radps": 2.8,
+      "max_tilt_rad": 0.9599310885968813,
+      "cameras": [
+        {
+          "name": "front_camera",
+          "frame": "front_camera",
+          "fov_y_deg": 95.0,
+          "width": 384,
+          "height": 240,
+          "xyz_m": {
+            "x": 0.11499999999999999,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "xyaxes": "0 -1 0 0 0 1"
+        }
+      ]
+    },
+    "sensors": [
+      "pose_estimate_3d",
+      "altitude_m",
+      "next_gate_world_frame",
+      "gates_completed",
+      "gate_count"
+    ],
+    "actuators": [
+      "body_angular_velocity",
+      "collective_power"
+    ],
+    "objective": "Pass each gate in order without hitting the frame, leaving the flight volume, or exceeding attitude limits.",
+    "success_conditions": {
+      "gate_count": 3,
+      "gate_aperture_margin_m": 0.16,
+      "collision_count": 0,
+      "max_tilt_deg": 55.0,
+      "timeout_sec": 15.0
+    },
+    "scoring": {
+      "success": "55 points for completing all gates in order without collisions",
+      "time": "15 points scaled by time remaining",
+      "gate_progress": "15 points for partial gate completion",
+      "safety": "10 points for attitude and flight-volume margin",
+      "smoothness_energy": "5 points for bounded angular-rate changes and collective power"
+    },
+    "defaults": {
+      "runner": "quadrotor_gate_sequence",
+      "evaluation_seed": 4,
+      "dt_sec": 0.02,
+      "max_steps": 750,
+      "flight_volume_m": {
+        "x_min": -0.45,
+        "x_max": 4.95,
+        "y_min": -1.45,
+        "y_max": 1.45,
+        "z_min": 0.16,
+        "z_max": 2.25
+      }
+    }
+  },
+  {
+    "id": "cart_pole",
+    "title": "Cart Pole",
+    "difficulty": "intermediate",
+    "description": "Stabilize a seeded 2D cart-pole plant using full-state feedback and a bounded horizontal force command.",
+    "robot": {
+      "type": "cart_pole",
+      "model": "cart_pole_v1",
+      "cart_mass_kg": 1.0,
+      "pole_mass_kg": 0.1,
+      "pole_com_length_m": 0.5,
+      "pole_length_m": 1.0,
+      "pole_radius_m": 0.012,
+      "cart_width_m": 0.3,
+      "cart_height_m": 0.18,
+      "track_half_width_m": 2.4,
+      "max_force_n": 10.0,
+      "gravity_mps2": 9.81,
+      "minimum_phase_gain_m": 0.75
+    },
+    "sensors": [
+      "cart_pole_state",
+      "cart_pole_parameters"
+    ],
+    "actuators": [
+      "cart_force"
+    ],
+    "objective": "Keep the pole upright while returning the cart to the center of the track.",
+    "success_conditions": {
+      "final_pole_angle_rad": 0.08,
+      "max_abs_pole_angle_rad": 0.32,
+      "final_cart_position_m": 0.35,
+      "track_half_width_m": 2.4,
+      "timeout_sec": 10.0
+    },
+    "scoring": {
+      "survival": "45 points for keeping the pole upright and cart on the track for the full episode",
+      "pole_regulation": "25 points for low final and RMS pole angle",
+      "cart_regulation": "15 points for returning the cart near x=0",
+      "effort": "10 points for low force effort",
+      "smoothness": "5 points for low force command jerk"
+    },
+    "defaults": {
+      "runner": "cart_pole",
+      "evaluation_seed": 4,
+      "dt_sec": 0.02,
+      "max_steps": 500,
+      "initial_cart_position_range_m": [
+        -0.18,
+        0.18
+      ],
+      "initial_cart_velocity_range_mps": [
+        -0.06,
+        0.06
+      ],
+      "initial_pole_angle_range_rad": [
+        -0.12,
+        0.12
+      ],
+      "initial_pole_angular_velocity_range_radps": [
+        -0.04,
+        0.04
+      ],
+      "render_interval_sec": 0.1
+    }
+  },
+  {
+    "id": "cart_pole_minimum_phase",
+    "title": "Cart Pole: Minimum Phase",
+    "difficulty": "advanced",
+    "description": "Stabilize the same cart-pole plant with a feedback controller organized around the declared minimum-phase output y = x + c sin(theta), where c is larger than the pole COM length.",
+    "robot": {
+      "type": "cart_pole",
+      "model": "cart_pole_v1",
+      "cart_mass_kg": 1.0,
+      "pole_mass_kg": 0.1,
+      "pole_com_length_m": 0.5,
+      "pole_length_m": 1.0,
+      "pole_radius_m": 0.012,
+      "cart_width_m": 0.3,
+      "cart_height_m": 0.18,
+      "track_half_width_m": 2.4,
+      "max_force_n": 10.0,
+      "gravity_mps2": 9.81,
+      "minimum_phase_gain_m": 0.75
+    },
+    "sensors": [
+      "cart_pole_state",
+      "minimum_phase_output",
+      "cart_pole_parameters"
+    ],
+    "actuators": [
+      "cart_force"
+    ],
+    "objective": "Use the minimum-phase output and full state to reject the seeded disturbance, keep the pole upright, and settle both the cart and output near zero.",
+    "success_conditions": {
+      "final_pole_angle_rad": 0.045,
+      "max_abs_pole_angle_rad": 0.26,
+      "final_cart_position_m": 0.18,
+      "final_minimum_phase_output_m": 0.12,
+      "rms_minimum_phase_output_m": 0.18,
+      "track_half_width_m": 2.4,
+      "timeout_sec": 13.0
+    },
+    "scoring": {
+      "survival": "35 points for keeping the pole upright and cart on the track for the full episode",
+      "minimum_phase_output": "25 points for low final and RMS y = x + c sin(theta)",
+      "pole_regulation": "20 points for low final and RMS pole angle",
+      "cart_regulation": "10 points for returning the cart near x=0",
+      "effort_smoothness": "10 points for bounded force effort and command jerk"
+    },
+    "defaults": {
+      "runner": "cart_pole",
+      "evaluation_seed": 4,
+      "scenario": "minimum_phase",
+      "dt_sec": 0.02,
+      "max_steps": 650,
+      "initial_cart_position_range_m": [
+        -0.32,
+        0.32
+      ],
+      "initial_cart_velocity_range_mps": [
+        -0.1,
+        0.1
+      ],
+      "initial_pole_angle_abs_range_rad": [
+        0.08,
+        0.18
+      ],
+      "initial_pole_angular_velocity_range_radps": [
+        -0.1,
+        0.1
+      ],
+      "disturbance_start_sec": 2.0,
+      "disturbance_duration_sec": 0.26,
+      "disturbance_peak_force_n": 1.4,
+      "render_interval_sec": 0.1
+    }
+  },
+  {
+    "id": "inverse_kinematics_1",
+    "title": "Inverse Kinematics 1: Planar Arm",
+    "difficulty": "beginner",
+    "description": "Solve joint angles for a two-link revolute arm that reaches seeded target points in the horizontal plane.",
+    "robot": {
+      "type": "manipulator",
+      "model": "planar_2link_arm_v1",
+      "mechanism": "planar_2link",
+      "joint_count": 2,
+      "link_lengths_m": [
+        0.42,
+        0.34
+      ],
+      "joint_limits_rad": [
+        [
+          -3.141592653589793,
+          3.141592653589793
+        ],
+        [
+          0.0,
+          2.8797932657906435
+        ]
+      ],
+      "base_height_m": 0.0,
+      "base_spacing_m": null,
+      "end_effector_radius_m": 0.022,
+      "workspace_radius_m": 0.76
+    },
+    "sensors": [
+      "ik_target_pose",
+      "mechanism_dimensions"
+    ],
+    "actuators": [
+      "joint_angles"
+    ],
+    "objective": "Return shoulder and elbow angles that place the end effector on each target point.",
+    "success_conditions": {
+      "max_position_error_m": 0.015,
+      "mean_position_error_m": 0.008,
+      "joint_limit_violation_count": 0,
+      "target_count": 18
+    },
+    "scoring": {
+      "accuracy": "75 points for low mean end-effector position error",
+      "worst_case": "20 points for keeping every target inside tolerance",
+      "joint_limits": "5 points for respecting the declared joint limits"
+    },
+    "defaults": {
+      "runner": "inverse_kinematics",
+      "evaluation_seed": 17,
+      "dt_sec": 0.08,
+      "max_steps": 18,
+      "render_interval_sec": 0.16,
+      "target_shape": "seeded_planar_points"
+    }
+  },
+  {
+    "id": "inverse_kinematics_2",
+    "title": "Inverse Kinematics 2: Turret Arm",
+    "difficulty": "intermediate",
+    "description": "Solve yaw, shoulder, and elbow angles for a turret-mounted two-link arm reaching seeded target points in 3D space.",
+    "robot": {
+      "type": "manipulator",
+      "model": "turret_2link_arm_v1",
+      "mechanism": "turret_2link",
+      "joint_count": 3,
+      "link_lengths_m": [
+        0.46,
+        0.38
+      ],
+      "joint_limits_rad": [
+        [
+          -3.141592653589793,
+          3.141592653589793
+        ],
+        [
+          -0.6108652381980153,
+          1.3962634015954636
+        ],
+        [
+          -2.530727415391778,
+          2.181661564992912
+        ]
+      ],
+      "base_height_m": 0.18,
+      "base_spacing_m": null,
+      "end_effector_radius_m": 0.024,
+      "workspace_radius_m": 0.8400000000000001
+    },
+    "sensors": [
+      "ik_target_pose",
+      "mechanism_dimensions"
+    ],
+    "actuators": [
+      "joint_angles"
+    ],
+    "objective": "Return turret yaw and two pitch angles that place the wrist on each 3D target.",
+    "success_conditions": {
+      "max_position_error_m": 0.022,
+      "mean_position_error_m": 0.012,
+      "joint_limit_violation_count": 0,
+      "target_count": 20
+    },
+    "scoring": {
+      "accuracy": "75 points for low mean 3D wrist position error",
+      "worst_case": "20 points for keeping every 3D target inside tolerance",
+      "joint_limits": "5 points for respecting yaw, shoulder, and elbow limits"
+    },
+    "defaults": {
+      "runner": "inverse_kinematics",
+      "evaluation_seed": 23,
+      "dt_sec": 0.08,
+      "max_steps": 20,
+      "render_interval_sec": 0.16,
+      "target_shape": "seeded_3d_points"
+    }
+  },
+  {
+    "id": "inverse_kinematics_3",
+    "title": "Inverse Kinematics 3: SCARA Drawing Arm",
+    "difficulty": "advanced",
+    "description": "Solve the two motor angles for a five-bar SCARA-style drawing mechanism and track a seeded pen trajectory.",
+    "robot": {
+      "type": "manipulator",
+      "model": "five_bar_scara_v1",
+      "mechanism": "five_bar_scara",
+      "joint_count": 2,
+      "link_lengths_m": [
+        0.3,
+        0.34
+      ],
+      "joint_limits_rad": [
+        [
+          0.08726646259971647,
+          2.792526803190927
+        ],
+        [
+          0.3490658503988659,
+          3.1066860685499065
+        ]
+      ],
+      "base_height_m": 0.0,
+      "base_spacing_m": 0.36,
+      "end_effector_radius_m": 0.018,
+      "workspace_radius_m": 0.62
+    },
+    "sensors": [
+      "ik_target_pose",
+      "mechanism_dimensions",
+      "drawing_trajectory"
+    ],
+    "actuators": [
+      "joint_angles"
+    ],
+    "objective": "Return left and right motor angles that trace the requested drawing path with the pen tip.",
+    "success_conditions": {
+      "max_position_error_m": 0.02,
+      "mean_position_error_m": 0.01,
+      "joint_limit_violation_count": 0,
+      "target_count": 72
+    },
+    "scoring": {
+      "accuracy": "75 points for low mean pen-tip tracking error over the drawing stroke",
+      "worst_case": "20 points for keeping the full stroke inside tolerance",
+      "joint_limits": "5 points for respecting the two motor joint limits"
+    },
+    "defaults": {
+      "runner": "inverse_kinematics",
+      "evaluation_seed": 31,
+      "dt_sec": 0.04,
+      "max_steps": 72,
+      "render_interval_sec": 0.12,
+      "target_shape": "seeded_lissajous_stroke"
+    }
+  }
+]
