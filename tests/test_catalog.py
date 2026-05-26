@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from roborank_envs.catalog import get_challenge, list_challenges
-from roborank_envs.runner import run_policy_file
+from roborank_envs.catalog import get_challenge, get_challenge_spec, list_challenges
+from roborank_envs.runner import run_policy, run_policy_file
 
 
 SAMPLE_POLICIES = {
@@ -19,6 +19,7 @@ SAMPLE_POLICIES = {
     "quadrotor_gate_sequence": "quadrotor_gate_tracker.py",
     "cart_pole": "cart_pole_stabilizer.py",
     "cart_pole_minimum_phase": "cart_pole_minimum_phase.py",
+    "trapezoidal_motion_profile": "trapezoidal_motion_profile.py",
     "inverse_kinematics_1": "inverse_kinematics_1.py",
     "inverse_kinematics_2": "inverse_kinematics_2.py",
     "inverse_kinematics_3": "inverse_kinematics_3.py",
@@ -28,7 +29,7 @@ SAMPLE_POLICIES = {
 def test_catalog_contains_current_roborank_challenges() -> None:
     challenges = list_challenges()
 
-    assert len(challenges) == 15
+    assert len(challenges) == 16
     assert challenges[0]["id"] == "diff_drive_reach_target"
     assert {challenge["id"] for challenge in challenges} == {
         "diff_drive_reach_target",
@@ -43,6 +44,7 @@ def test_catalog_contains_current_roborank_challenges() -> None:
         "quadrotor_gate_sequence",
         "cart_pole",
         "cart_pole_minimum_phase",
+        "trapezoidal_motion_profile",
         "inverse_kinematics_1",
         "inverse_kinematics_2",
         "inverse_kinematics_3",
@@ -72,3 +74,21 @@ def test_sample_policy_runs_locally(challenge_id: str, policy_path: str, monkeyp
     assert result.challenge_id == challenge_id
     assert result.metrics.success is True
     assert result.metrics.score > 80
+
+
+def test_motion_profile_penalizes_acceleration_limit_violations(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("ROBORANK_DISABLE_RERUN_EXPORT", "1")
+
+    class BadPolicy:
+        def step(self, cart):
+            cart.set_acceleration(cart.max_acceleration_mps2 * 2.0)
+
+    challenge = get_challenge_spec("trapezoidal_motion_profile")
+    assert challenge is not None
+
+    result = run_policy(challenge=challenge, policy=BadPolicy(), seed=19, max_steps=4)
+
+    assert result.metrics.success is False
+    assert result.metrics.status == "limit_violation"
+    assert result.metrics.acceleration_limit_violation_count == 4
+    assert any(sample.acceleration_limit_violation for sample in result.replay.motion_profile_states)

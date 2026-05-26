@@ -969,6 +969,58 @@
     }
   },
   {
+    "id": "trapezoidal_motion_profile",
+    "title": "Trapezoidal Motion Profile",
+    "difficulty": "intermediate",
+    "description": "Generate a time-efficient 1D trapezoidal motion profile for a cart moving to a seeded target while respecting strict velocity and acceleration limits.",
+    "robot": {
+      "type": "profiled_cart_1d",
+      "model": "profiled_cart_1d_v1",
+      "cart_mass_kg": 1.2,
+      "cart_width_m": 0.28,
+      "cart_height_m": 0.16,
+      "track_half_width_m": 4.2,
+      "max_velocity_mps": 1.25,
+      "max_acceleration_mps2": 1.6
+    },
+    "sensors": [
+      "motion_state_1d",
+      "motion_target_1d",
+      "motion_limits"
+    ],
+    "actuators": [
+      "cart_acceleration"
+    ],
+    "objective": "Command the cart acceleration each timestep so it reaches the target position with near-zero final velocity. Acceleration commands must stay inside the declared limit, and slow profiles lose time score.",
+    "success_conditions": {
+      "position_tolerance_m": 0.04,
+      "velocity_tolerance_mps": 0.05,
+      "acceleration_limit_violation_count": 0,
+      "velocity_limit_violation_count": 0,
+      "max_time_ratio_vs_optimal": 1.35,
+      "timeout_sec": 8.0
+    },
+    "scoring": {
+      "accuracy": "35 points for stopping at the target position",
+      "final_velocity": "20 points for ending near zero velocity",
+      "limit_compliance": "20 points for never exceeding acceleration or velocity limits",
+      "time": "20 points for finishing close to the time-optimal trapezoidal profile",
+      "smoothness": "5 points for avoiding unnecessary acceleration chatter"
+    },
+    "defaults": {
+      "runner": "trapezoidal_motion_profile",
+      "evaluation_seed": 19,
+      "dt_sec": 0.02,
+      "max_steps": 400,
+      "render_interval_sec": 0.1,
+      "target_distance_range_m": [
+        2.15,
+        3.85
+      ],
+      "allow_negative_targets": true
+    }
+  },
+  {
     "id": "inverse_kinematics_1",
     "title": "Inverse Kinematics 1: Planar Arm",
     "difficulty": "beginner",

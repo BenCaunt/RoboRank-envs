@@ -14,6 +14,7 @@ from roborank_envs.simulation.diff_drive import (
 from roborank_envs.simulation.imu_collision import ImuCollisionRunner
 from roborank_envs.simulation.inverse_kinematics import InverseKinematicsRunner
 from roborank_envs.simulation.motor_stand import MotorStandRunner
+from roborank_envs.simulation.motion_profile import MotionProfileRunner
 from roborank_envs.simulation.quadrotor import QuadrotorGateRunner
 
 
@@ -53,6 +54,8 @@ def _runner_for_challenge(challenge: ChallengeSpec, *, runner_name: str) -> obje
         return MotorStandRunner(challenge)
     if runner_name == "cart_pole":
         return CartPoleRunner(challenge)
+    if runner_name == "trapezoidal_motion_profile":
+        return MotionProfileRunner(challenge)
     if runner_name == "quadrotor_gate_sequence":
         return QuadrotorGateRunner(challenge)
     if runner_name == "imu_collision":
@@ -65,6 +68,8 @@ def _runner_for_challenge(challenge: ChallengeSpec, *, runner_name: str) -> obje
         return DifferentialDriveSlamRunner(challenge)
     if challenge.robot.type == "differential_drive":
         return DifferentialDriveRunner(challenge)
+    if challenge.robot.type == "profiled_cart_1d":
+        return MotionProfileRunner(challenge)
     raise EnvironmentRunError(f"No runner available for challenge {challenge.id!r}.")
 
 
