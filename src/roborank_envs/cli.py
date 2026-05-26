@@ -5,6 +5,7 @@ import json
 import sys
 
 from roborank_envs.catalog import CatalogError, get_challenge, list_challenges, validate_catalog
+from roborank_envs.runner import EnvironmentRunError, run_policy_file
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -19,6 +20,13 @@ def main(argv: list[str] | None = None) -> int:
 
     export_parser = subparsers.add_parser("export", help="print the full catalog as JSON")
     export_parser.add_argument("--indent", type=int, default=2)
+
+    run_parser = subparsers.add_parser("run", help="run a local policy file against an environment")
+    run_parser.add_argument("challenge_id")
+    run_parser.add_argument("--policy", required=True, help="path to a Python file defining RobotPolicy")
+    run_parser.add_argument("--seed", type=int)
+    run_parser.add_argument("--max-steps", type=int)
+    run_parser.add_argument("--json", action="store_true", help="print the full RunResult JSON")
 
     args = parser.parse_args(argv)
 
@@ -41,7 +49,22 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "export":
             print(json.dumps(list_challenges(), indent=args.indent))
             return 0
-    except CatalogError as exc:
+        if args.command == "run":
+            result = run_policy_file(
+                challenge_id=args.challenge_id,
+                policy_path=args.policy,
+                seed=args.seed,
+                max_steps=args.max_steps,
+            )
+            if args.json:
+                print(result.model_dump_json(indent=2))
+            else:
+                print(
+                    f"{result.challenge_id}: status={result.metrics.status} "
+                    f"success={str(result.metrics.success).lower()} score={result.metrics.score:.2f}"
+                )
+            return 0
+    except (CatalogError, EnvironmentRunError) as exc:
         print(str(exc), file=sys.stderr)
         return 1
 

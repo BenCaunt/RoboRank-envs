@@ -1,6 +1,27 @@
 from __future__ import annotations
 
+import pytest
+
 from roborank_envs.catalog import get_challenge, list_challenges
+from roborank_envs.runner import run_policy_file
+
+
+SAMPLE_POLICIES = {
+    "diff_drive_reach_target": "pure_pursuit.py",
+    "dock_to_charger": "dock_to_charger.py",
+    "warehouse_aisle_avoidance": "warehouse_route_follower.py",
+    "diff_drive_odometry": "odometry_baseline.py",
+    "diff_drive_state_estimation": "state_estimation_fusion.py",
+    "diff_drive_2d_slam": "slam_loop_closure.py",
+    "imu_collision_detection": "imu_collision_demo.py",
+    "motor_torque_scale_control": "press_scale_pid.py",
+    "quadrotor_gate_sequence": "quadrotor_gate_tracker.py",
+    "cart_pole": "cart_pole_stabilizer.py",
+    "cart_pole_minimum_phase": "cart_pole_minimum_phase.py",
+    "inverse_kinematics_1": "inverse_kinematics_1.py",
+    "inverse_kinematics_2": "inverse_kinematics_2.py",
+    "inverse_kinematics_3": "inverse_kinematics_3.py",
+}
 
 
 def test_catalog_contains_current_roborank_challenges() -> None:
@@ -35,3 +56,17 @@ def test_get_challenge_returns_defensive_copy() -> None:
     fresh = get_challenge("diff_drive_reach_target")
     assert fresh is not None
     assert fresh["title"] == "Differential Drive: Reach Target"
+
+
+@pytest.mark.parametrize(("challenge_id", "policy_path"), SAMPLE_POLICIES.items())
+def test_sample_policy_runs_locally(challenge_id: str, policy_path: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("ROBORANK_DISABLE_RERUN_EXPORT", "1")
+
+    result = run_policy_file(
+        challenge_id=challenge_id,
+        policy_path=policy_path,
+    )
+
+    assert result.challenge_id == challenge_id
+    assert result.metrics.success is True
+    assert result.metrics.score > 80
