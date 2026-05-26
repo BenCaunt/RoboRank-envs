@@ -69,6 +69,9 @@ def _artifact_filename(*, challenge_id: str, seed: int, artifact_prefix: str | N
 
 
 def _log_static_scene(*, rr: object, rec: object, challenge: ChallengeSpec, replay: ReplayTrace, metrics: ScoreMetrics) -> None:
+    if challenge.robot.type == "profiled_cart_1d":
+        _log_motion_profile_static_scene(rr=rr, rec=rec, challenge=challenge, replay=replay, metrics=metrics)
+        return
     if challenge.robot.type == "cart_pole":
         _log_cart_pole_static_scene(rr=rr, rec=rec, challenge=challenge, replay=replay, metrics=metrics)
         return
@@ -197,6 +200,9 @@ def _log_static_scene(*, rr: object, rec: object, challenge: ChallengeSpec, repl
 
 
 def _log_time_series(*, rr: object, rec: object, challenge: ChallengeSpec, replay: ReplayTrace) -> None:
+    if challenge.robot.type == "profiled_cart_1d":
+        _log_motion_profile_time_series(rr=rr, rec=rec, challenge=challenge, replay=replay)
+        return
     if challenge.robot.type == "cart_pole":
         _log_cart_pole_time_series(rr=rr, rec=rec, challenge=challenge, replay=replay)
         return
@@ -420,6 +426,107 @@ def _log_cart_pole_time_series(*, rr: object, rec: object, challenge: ChallengeS
         control = controls_by_time.get(round(sample.t, 6))
         if control is not None:
             rec.log("controls/cart_force_n", rr.Scalars(control.force_n))  # type: ignore[attr-defined]
+
+    for frame in replay.render_frames:
+        _log_render_frame(rr=rr, rec=rec, frame=frame)
+
+
+def _log_motion_profile_static_scene(
+    *,
+    rr: object,
+    rec: object,
+    challenge: ChallengeSpec,
+    replay: ReplayTrace,
+    metrics: ScoreMetrics,
+) -> None:
+    cart = challenge.robot
+    track = cart.track_half_width_m
+    target_position = float(replay.metadata.get("target_position_m", 0.0))
+    rec.log(  # type: ignore[attr-defined]
+        "world/track",
+        rr.LineStrips3D(  # type: ignore[attr-defined]
+            [[(-track, 0.0, 0.04), (track, 0.0, 0.04)]],
+            radii=0.02,
+            colors=[(70, 82, 96, 255)],
+        ),
+        static=True,
+    )
+    rec.log(  # type: ignore[attr-defined]
+        "world/track_limits",
+        rr.Points3D(  # type: ignore[attr-defined]
+            [(-track, 0.0, 0.12), (track, 0.0, 0.12)],
+            radii=0.05,
+            colors=(184, 62, 54, 220),
+        ),
+        static=True,
+    )
+    rec.log(  # type: ignore[attr-defined]
+        "world/target",
+        rr.Points3D(  # type: ignore[attr-defined]
+            [(target_position, 0.0, cart.cart_height_m + 0.12)],
+            radii=0.06,
+            colors=(210, 52, 44, 255),
+        ),
+        static=True,
+    )
+
+    cart_path = [(sample.position_m, 0.0, cart.cart_height_m + 0.08) for sample in replay.motion_profile_states]
+    if len(cart_path) >= 2:
+        rec.log(  # type: ignore[attr-defined]
+            "world/cart_path",
+            rr.LineStrips3D([cart_path], radii=0.012, colors=[(31, 111, 139, 255)]),  # type: ignore[attr-defined]
+            static=True,
+        )
+
+    rec.log(  # type: ignore[attr-defined]
+        "summary",
+        rr.TextDocument(  # type: ignore[attr-defined]
+            "\n".join(
+                [
+                    f"challenge: {challenge.id}",
+                    f"status: {metrics.status}",
+                    f"score: {metrics.score}",
+                    f"finish time sec: {metrics.finish_time_sec}",
+                    f"optimal time sec: {metrics.optimal_time_sec}",
+                    f"robot: {cart.model}",
+                ]
+            )
+        ),
+        static=True,
+    )
+
+
+def _log_motion_profile_time_series(*, rr: object, rec: object, challenge: ChallengeSpec, replay: ReplayTrace) -> None:
+    cart = challenge.robot
+    controls_by_time = {round(control.t, 6): control for control in replay.motion_profile_controls}
+    cart_z = cart.cart_height_m / 2 + 0.04
+    cart_half_sizes = [[cart.cart_width_m / 2, 0.12, cart.cart_height_m / 2]]
+
+    for sample in replay.motion_profile_states:
+        rec.set_time("frame", sequence=sample.frame_index)  # type: ignore[attr-defined]
+        rec.set_time("time", duration=sample.t)  # type: ignore[attr-defined]
+        rec.log(  # type: ignore[attr-defined]
+            "world/cart",
+            rr.Boxes3D(  # type: ignore[attr-defined]
+                centers=[[sample.position_m, 0.0, cart_z]],
+                half_sizes=cart_half_sizes,
+                colors=[(31, 111, 139, 190)],
+                labels=["cart"],
+            ),
+        )
+        rec.log("state/position_m", rr.Scalars(sample.position_m))  # type: ignore[attr-defined]
+        rec.log("state/velocity_mps", rr.Scalars(sample.velocity_mps))  # type: ignore[attr-defined]
+        rec.log("state/acceleration_mps2", rr.Scalars(sample.acceleration_mps2))  # type: ignore[attr-defined]
+        rec.log("state/position_error_m", rr.Scalars(sample.position_error_m))  # type: ignore[attr-defined]
+        rec.log("state/velocity_error_mps", rr.Scalars(sample.velocity_error_mps))  # type: ignore[attr-defined]
+        rec.log("target/position_m", rr.Scalars(sample.target_position_m))  # type: ignore[attr-defined]
+
+        control = controls_by_time.get(round(sample.t, 6))
+        if control is not None:
+            rec.log("controls/acceleration_command_mps2", rr.Scalars(control.acceleration_command_mps2))  # type: ignore[attr-defined]
+            rec.log("controls/applied_acceleration_mps2", rr.Scalars(control.applied_acceleration_mps2))  # type: ignore[attr-defined]
+            rec.log("limits/acceleration_violation", rr.Scalars(1.0 if control.acceleration_limit_violation else 0.0))  # type: ignore[attr-defined]
+        rec.log("limits/velocity_violation", rr.Scalars(1.0 if sample.velocity_limit_violation else 0.0))  # type: ignore[attr-defined]
 
     for frame in replay.render_frames:
         _log_render_frame(rr=rr, rec=rec, frame=frame)

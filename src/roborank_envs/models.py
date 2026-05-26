@@ -144,6 +144,17 @@ class CartPoleSpec(BaseModel):
     minimum_phase_gain_m: float
 
 
+class ProfiledCartSpec(BaseModel):
+    type: Literal["profiled_cart_1d"]
+    model: str = "profiled_cart_1d_v1"
+    cart_mass_kg: float
+    cart_width_m: float
+    cart_height_m: float
+    track_half_width_m: float
+    max_velocity_mps: float
+    max_acceleration_mps2: float
+
+
 class ManipulatorSpec(BaseModel):
     type: Literal["manipulator"]
     model: str
@@ -157,7 +168,7 @@ class ManipulatorSpec(BaseModel):
     workspace_radius_m: float = 1.0
 
 
-RobotSpec = DifferentialDriveRobotSpec | MotorStandSpec | QuadrotorSpec | CartPoleSpec | ManipulatorSpec
+RobotSpec = DifferentialDriveRobotSpec | MotorStandSpec | QuadrotorSpec | CartPoleSpec | ProfiledCartSpec | ManipulatorSpec
 
 
 class ChallengeSummary(BaseModel):
@@ -242,6 +253,28 @@ class CartPoleStateSample(BaseModel):
     minimum_phase_output_m: float | None = None
     minimum_phase_output_velocity_mps: float | None = None
     force_n: float | None = None
+
+
+class MotionProfileControlSample(BaseModel):
+    t: float
+    acceleration_command_mps2: float
+    applied_acceleration_mps2: float
+    acceleration_limit_violation: bool = False
+
+
+class MotionProfileStateSample(BaseModel):
+    t: float
+    frame_index: int
+    position_m: float
+    velocity_mps: float
+    acceleration_mps2: float
+    target_position_m: float
+    target_velocity_mps: float
+    position_error_m: float
+    velocity_error_mps: float
+    acceleration_command_mps2: float | None = None
+    acceleration_limit_violation: bool = False
+    velocity_limit_violation: bool = False
 
 
 class InverseKinematicsSample(BaseModel):
@@ -330,6 +363,7 @@ class ScoreMetrics(BaseModel):
         "force_control",
         "gate_sequence",
         "cart_pole",
+        "motion_profile",
         "inverse_kinematics",
         "slam",
     ] = "navigation"
@@ -375,6 +409,13 @@ class ScoreMetrics(BaseModel):
     max_abs_cart_position_m: float | None = None
     final_minimum_phase_output_m: float | None = None
     rms_minimum_phase_output_m: float | None = None
+    final_velocity_error_mps: float | None = None
+    max_abs_velocity_mps: float | None = None
+    max_abs_acceleration_command_mps2: float | None = None
+    acceleration_limit_violation_count: int | None = None
+    velocity_limit_violation_count: int | None = None
+    optimal_time_sec: float | None = None
+    finish_time_sec: float | None = None
     target_count: int | None = None
     joint_limit_violation_count: int | None = None
     map_chamfer_error_m: float | None = None
@@ -393,6 +434,8 @@ class ReplayTrace(BaseModel):
     motor_states: list[MotorStateSample] = Field(default_factory=list)
     cart_pole_controls: list[CartPoleControlSample] = Field(default_factory=list)
     cart_pole_states: list[CartPoleStateSample] = Field(default_factory=list)
+    motion_profile_controls: list[MotionProfileControlSample] = Field(default_factory=list)
+    motion_profile_states: list[MotionProfileStateSample] = Field(default_factory=list)
     inverse_kinematics_samples: list[InverseKinematicsSample] = Field(default_factory=list)
     render_frames: list[RenderFrame] = Field(default_factory=list)
     lidar_scans: list[LidarScanSample] = Field(default_factory=list)

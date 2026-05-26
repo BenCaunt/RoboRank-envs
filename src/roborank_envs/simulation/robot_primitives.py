@@ -9,6 +9,7 @@ from roborank_envs.models import (
     LidarSpec,
     ManipulatorSpec,
     MotorStandSpec,
+    ProfiledCartSpec,
     QuadrotorSpec,
 )
 
@@ -146,6 +147,21 @@ def cart_pole_v1() -> CartPoleSpec:
         max_force_n=10.0,
         gravity_mps2=9.81,
         minimum_phase_gain_m=0.75,
+    )
+
+
+def profiled_cart_1d_v1() -> ProfiledCartSpec:
+    """One-dimensional cart fixture for time-optimal motion-profile challenges."""
+
+    return ProfiledCartSpec(
+        type="profiled_cart_1d",
+        model="profiled_cart_1d_v1",
+        cart_mass_kg=1.2,
+        cart_width_m=0.28,
+        cart_height_m=0.16,
+        track_half_width_m=4.2,
+        max_velocity_mps=1.25,
+        max_acceleration_mps2=1.6,
     )
 
 
