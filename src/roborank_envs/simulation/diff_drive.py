@@ -45,6 +45,7 @@ from roborank_envs.simulation.rerun_export import write_rerun_recording
 
 DEFAULT_REPLAY_RENDER_INTERVAL_SEC = 0.1
 DOCK_TO_CHARGER_SCENARIO = "dock_to_charger"
+LIDAR_MAZE_SCENARIO = "lidar_maze_navigation"
 DIFF_DRIVE_STATE_ESTIMATION_RUNNER = "diff_drive_state_estimation"
 DIFF_DRIVE_SLAM_RUNNER = "diff_drive_slam"
 CHARGER_CAMERA_WIDTH = 160
@@ -368,6 +369,8 @@ class DifferentialDriveRunner:
     def _scenario(self, seed: int) -> Scenario:
         if self.challenge.defaults.get("scenario") == DOCK_TO_CHARGER_SCENARIO:
             return self._dock_to_charger_scenario(seed)
+        if self.challenge.defaults.get("scenario") == LIDAR_MAZE_SCENARIO:
+            return self._lidar_maze_scenario(seed)
         if self.challenge.defaults.get("scenario") == "warehouse_aisle_avoidance":
             return self._warehouse_aisle_scenario(seed)
         return self._reach_target_scenario(seed)
@@ -413,6 +416,54 @@ class DifferentialDriveRunner:
             charger_bias_y_m=rng.uniform(-0.006, 0.006),
             charger_bias_yaw_rad=rng.uniform(-math.radians(0.35), math.radians(0.35)),
         )
+
+    def _lidar_maze_scenario(self, seed: int) -> Scenario:
+        rng = random.Random(seed)
+        wall_radius = float(self.challenge.defaults.get("maze_wall_post_radius_m", 0.13))
+        wall_spacing = float(self.challenge.defaults.get("maze_wall_post_spacing_m", 0.23))
+        wall_jitter = float(self.challenge.defaults.get("maze_wall_jitter_m", 0.018))
+        start = Pose2D(
+            x=-2.72 + rng.uniform(-0.04, 0.04),
+            y=-1.42 + rng.uniform(-0.05, 0.05),
+            yaw=rng.uniform(-0.05, 0.05),
+        )
+        target = Target(
+            x=2.72 + rng.uniform(-0.04, 0.04),
+            y=1.42 + rng.uniform(-0.05, 0.05),
+            radius=float(self.challenge.success_conditions["target_tolerance_m"]),
+        )
+
+        obstacles: list[Obstacle] = []
+        wall_segments = (
+            ("left_baffle", -1.78, -1.96, 0.82),
+            ("middle_baffle", -0.10, -0.82, 1.96),
+            ("right_baffle", 1.48, -1.96, 0.82),
+        )
+        for wall_id, x, y_min, y_max in wall_segments:
+            obstacles.extend(
+                _vertical_post_wall(
+                    wall_id=wall_id,
+                    x=x + rng.uniform(-wall_jitter, wall_jitter),
+                    y_min=y_min,
+                    y_max=y_max,
+                    radius=wall_radius,
+                    spacing=wall_spacing,
+                    rng=rng,
+                    jitter=wall_jitter,
+                )
+            )
+
+        route = [
+            Pose2D(x=start.x, y=start.y, yaw=start.yaw),
+            Pose2D(x=-2.62, y=1.42, yaw=math.pi / 2),
+            Pose2D(x=-1.02, y=1.42, yaw=0.0),
+            Pose2D(x=-1.02, y=-1.42, yaw=-math.pi / 2),
+            Pose2D(x=0.72, y=-1.42, yaw=0.0),
+            Pose2D(x=0.72, y=1.42, yaw=math.pi / 2),
+            Pose2D(x=target.x, y=target.y, yaw=0.0),
+        ]
+
+        return Scenario(start=start, target=target, route=route, obstacles=obstacles, bounds=self.bounds)
 
     def _reach_target_scenario(self, seed: int) -> Scenario:
         rng = random.Random(seed)
@@ -1927,6 +1978,31 @@ class DifferentialDriveSlamRunner(DifferentialDriveOdometryRunner):
             map_false_positive_ratio=round(false_positive_ratio, 6),
             map_point_count=len(submitted_points),
         )
+
+
+def _vertical_post_wall(
+    *,
+    wall_id: str,
+    x: float,
+    y_min: float,
+    y_max: float,
+    radius: float,
+    spacing: float,
+    rng: random.Random,
+    jitter: float,
+) -> list[Obstacle]:
+    span = max(0.0, y_max - y_min)
+    count = max(2, int(math.floor(span / spacing)) + 1)
+    ys = [y_min + index * span / (count - 1) for index in range(count)]
+    return [
+        Obstacle(
+            id=f"{wall_id}_post_{index + 1}",
+            x=x + rng.uniform(-jitter, jitter),
+            y=y + rng.uniform(-jitter, jitter),
+            radius=radius,
+        )
+        for index, y in enumerate(ys)
+    ]
 
 
 def _relative_pose(*, pose: Pose2D, target: Target, target_yaw: float) -> tuple[float, float, float]:

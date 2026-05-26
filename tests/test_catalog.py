@@ -13,6 +13,7 @@ SAMPLE_POLICIES = {
     "diff_drive_odometry": "odometry_baseline.py",
     "diff_drive_state_estimation": "state_estimation_fusion.py",
     "diff_drive_2d_slam": "slam_loop_closure.py",
+    "diff_drive_lidar_maze": "lidar_maze_follower.py",
     "imu_collision_detection": "imu_collision_demo.py",
     "motor_torque_scale_control": "press_scale_pid.py",
     "quadrotor_gate_sequence": "quadrotor_gate_tracker.py",
@@ -27,13 +28,14 @@ SAMPLE_POLICIES = {
 def test_catalog_contains_current_roborank_challenges() -> None:
     challenges = list_challenges()
 
-    assert len(challenges) == 14
+    assert len(challenges) == 15
     assert challenges[0]["id"] == "diff_drive_reach_target"
     assert {challenge["id"] for challenge in challenges} == {
         "diff_drive_reach_target",
         "diff_drive_odometry",
         "diff_drive_state_estimation",
         "diff_drive_2d_slam",
+        "diff_drive_lidar_maze",
         "dock_to_charger",
         "warehouse_aisle_avoidance",
         "imu_collision_detection",

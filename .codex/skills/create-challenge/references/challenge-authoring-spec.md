@@ -1,23 +1,22 @@
 # Challenge Authoring Spec
 
-Use this reference when adding robotics or computer-vision coding challenges to the `leetcode-but-robotics` app.
+Use this reference when adding robotics or computer-vision coding environments to the `RoboRank-envs` package.
 
 ## Current Integration Map
 
-- Frontend challenge model: `frontend/src/types.ts`
-- Frontend challenge data, interface members, stub generation, starter code: `frontend/src/data.ts`
-- Problem rendering, run controls, MuJoCo and Rerun panes: `frontend/src/App.tsx`
-- Backend API models: `backend/app/models.py`
-- Backend catalog: `backend/app/catalog.py`
-- Injected user policy API: `backend/app/policy_api.py`
-- Policy execution/injected globals: `backend/app/policy_loader.py`
-- API runner routing: `backend/app/main.py`
-- Existing differential-drive runner: `backend/app/simulation/diff_drive.py`
-- Existing MuJoCo world builder: `backend/app/simulation/mujoco_world.py`
-- Existing Rerun export: `backend/app/simulation/rerun_export.py`
-- Computer-vision runner patterns: `backend/app/simulation/computer_vision.py`
-- Shared robot primitives: `backend/app/simulation/robot_primitives.py`
-- Backend samples and tests: `backend/samples/policies/`, `backend/tests/`
+- Package catalog data: `src/roborank_envs/catalog_data.json`
+- Catalog loader and constants: `src/roborank_envs/catalog.py`
+- Environment runner routing: `src/roborank_envs/runner.py`
+- API/data models: `src/roborank_envs/models.py`
+- Injected user policy API: `src/roborank_envs/policy_api.py`
+- Policy execution/injected globals: `src/roborank_envs/policy_loader.py`
+- Existing differential-drive runner: `src/roborank_envs/simulation/diff_drive.py`
+- Existing MuJoCo world builder: `src/roborank_envs/simulation/mujoco_world.py`
+- Existing Rerun export: `src/roborank_envs/simulation/rerun_export.py`
+- Shared robot primitives: `src/roborank_envs/simulation/robot_primitives.py`
+- Public challenge docs: `docs/challenges/`
+- Sample policies and tests: `samples/policies/`, `tests/`
+- RoboRank app frontend stubs/problem pages live in the separate `BenCaunt/RoboRank` repo and should be updated there after the package commit is pinned.
 
 ## Challenge Brief Schema
 
@@ -35,13 +34,13 @@ Required sections:
 - Success and scoring: pass/fail criteria, score components, timeouts, penalties, and metric names.
 - Replay contract: MuJoCo render cameras/frames when physics-backed, Rerun streams, sensor/image traces, controls or submitted outputs, and metadata.
 - Demo policy: behavior that visibly exercises the simulation and critical API calls without solving the task or relying on hidden internals.
-- Validation plan: tests, frontend build, browser run, MuJoCo/Rerun checks.
+- Validation plan: package tests, sample policy run, MuJoCo/Rerun checks, and app frontend checks only when the app repo is part of the task.
 
 ## Composition Rules
 
 Prefer reuse in this order:
 
-1. Catalog/frontend-only spec update, only when the user explicitly wants a draft.
+1. Catalog/docs-only spec update, only when the user explicitly wants a draft.
 2. Existing differential-drive runner for planar target/obstacle tasks using wheel velocity commands, solved pose, target, obstacles, and lidar.
 3. Extension of the differential-drive API/runner for new low-level sensors, visual servoing, odometry, docking, route following, or alternative scoring that still uses planar differential-drive dynamics.
 4. Existing computer-vision runner for image-only perception tasks with seeded images, OpenCV policy access, submitted detections/classifications/estimates, and Rerun image replay.
@@ -88,7 +87,7 @@ Any stochastic sensor behavior must be visible in the stub text or problem contr
 
 For runnable challenges:
 
-- `ChallengeSpec` should describe the public problem and defaults needed by the runner.
+- `ChallengeSpec` data in `catalog_data.json` should describe the public problem and defaults needed by the runner.
 - Policy APIs should use dataclasses/simple runtime classes for user-facing values and commands.
 - Policy loader globals should include every user-visible type used in starter code.
 - Runners should seed `random` and `numpy`, create a scenario or image batch, call `policy.step(robot_or_task)`, consume the command/submission, score, and return `RunResult`.
@@ -99,7 +98,9 @@ For runnable challenges:
 - Fallbacks may keep grading usable when MuJoCo/Rerun is not installed, but the response should expose the render/export error in metadata.
 - `opencv-python` is a required dependency for computer-vision challenges, and submitted policies should be able to `import cv2`.
 
-## Frontend Requirements
+## App Frontend Requirements
+
+These apply when the same task also updates the RoboRank app repo. The environment package itself does not contain frontend problem pages.
 
 - Add reusable `InterfaceMember` and stub types when the API surface is shared by future challenges.
 - Use generated stubs through the existing `composeChallenge` flow; avoid hand-written one-off code blocks.
@@ -111,7 +112,7 @@ For runnable challenges:
 
 ## Demo Policy Guidance
 
-Demo code should be intentionally modest and should not solve the challenge. Put tuned baselines, reference controllers, route followers, estimators, and threshold classifiers in `backend/samples/policies/` or tests instead of the frontend starter.
+Demo code should be intentionally modest when it is intended as app starter code. Put tuned baselines, reference controllers, route followers, estimators, and threshold classifiers in `samples/policies/` or tests instead of the frontend starter.
 
 - Differential drive: command low forward velocity with a sinusoidal angular component or a small sensor-reactive safety behavior such as stopping for close lidar.
 - Odometry/sensor tasks: read exposed sensors, submit the required placeholder output such as `Pose2d(0, 0, 0)`, and command slow bounded movement so traces are populated.
@@ -127,11 +128,11 @@ Do not add demo policies that depend on private scenario state, solve hidden var
 Run the relevant subset:
 
 ```bash
-cd backend && uv run pytest
-npm --prefix frontend run build
+uv run pytest
+ROBORANK_DISABLE_RERUN_EXPORT=1 uv run roborank-envs run <challenge-id> --policy samples/policies/<sample>.py
 ```
 
-For runnable frontend changes, use the in-app browser:
+For runnable app frontend changes in the RoboRank repo, use the in-app browser:
 
 - Open `/problems/<challenge-id>`.
 - Confirm the problem statement and editor show the generated API stub.

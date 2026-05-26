@@ -367,6 +367,93 @@
     }
   },
   {
+    "id": "diff_drive_lidar_maze",
+    "title": "Differential Drive: Lidar Maze Navigation",
+    "difficulty": "intermediate",
+    "description": "Navigate a 12 inch-class differential-drive robot through a seeded maze of tight baffles using 360-degree lidar for corridor following and obstacle clearance.",
+    "robot": {
+      "type": "differential_drive",
+      "model": "differential_drive_cube_v1",
+      "footprint_length_m": 0.30479999999999996,
+      "footprint_width_m": 0.30479999999999996,
+      "height_m": 0.30479999999999996,
+      "wheel_base_m": 0.2667,
+      "wheel_radius_m": 0.06604,
+      "wheel_width_m": 0.035559999999999994,
+      "radius_m": 0.21552614690565966,
+      "max_wheel_velocity_mps": 1.25,
+      "cameras": [
+        {
+          "name": "front_camera",
+          "frame": "front_camera",
+          "fov_y_deg": 120.0,
+          "width": 384,
+          "height": 240,
+          "xyz_m": {
+            "x": 0.1644,
+            "y": 0.0,
+            "z": 0.17678399999999997
+          },
+          "xyaxes": "0 -1 0 0 0 1"
+        }
+      ],
+      "lidars": [
+        {
+          "name": "lidar_2d_top",
+          "frame": "lidar_2d_top",
+          "fov_deg": 360.0,
+          "num_rays": 360,
+          "max_range_m": 6.0,
+          "xyz_m": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.3228
+          }
+        }
+      ]
+    },
+    "sensors": [
+      "ground_truth_pose",
+      "target_relative_pose",
+      "route_waypoints",
+      "lidar_2d_360"
+    ],
+    "actuators": [
+      "left_wheel_velocity",
+      "right_wheel_velocity"
+    ],
+    "objective": "Reach the maze exit without contacting baffles or arena walls. Policies should use lidar ranges to maintain clearance while following the maze corridor.",
+    "success_conditions": {
+      "target_tolerance_m": 0.28,
+      "collision_count": 0,
+      "timeout_sec": 32.0,
+      "min_clearance_m": 0.07
+    },
+    "scoring": {
+      "success": "55 points for reaching the maze exit without collisions",
+      "time": "20 points scaled by time remaining",
+      "safety": "15 points minus collision penalties",
+      "smoothness": "5 points for low wheel command jerk",
+      "energy": "5 points for low wheel effort"
+    },
+    "defaults": {
+      "evaluation_seed": 17,
+      "dt_sec": 0.05,
+      "max_steps": 640,
+      "render_interval_sec": 0.35,
+      "scenario": "lidar_maze_navigation",
+      "maze_wall_post_radius_m": 0.13,
+      "maze_wall_post_spacing_m": 0.23,
+      "maze_wall_jitter_m": 0.018,
+      "arena_bounds_m": {
+        "x_min": -3.15,
+        "x_max": 3.15,
+        "y_min": -2.05,
+        "y_max": 2.05
+      }
+    }
+  },
+  {
     "id": "dock_to_charger",
     "title": "Dock to Charging Pad",
     "difficulty": "intermediate",
