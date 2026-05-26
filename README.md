@@ -1,9 +1,9 @@
 # RoboRank Envs
 
-Private staging repo for RoboRank robotics challenge environments.
+Open-source package for RoboRank robotics challenge environments.
 
 This package exposes the RoboRank challenge catalog, policy-facing API, and
-simulation runners so environments can be validated and run outside the private
+simulation runners so environments can be validated and run outside the main
 RoboRank application.
 
 ## Setup
@@ -20,12 +20,14 @@ ROBORANK_DISABLE_RERUN_EXPORT=1 uv run roborank-envs run diff_drive_reach_target
 From the RoboRank backend checkout:
 
 ```bash
-uv pip install --python .venv/bin/python -e ../../RoboRank-envs
-ROBORANK_ENV_CATALOG_MODULE=roborank_envs.catalog uv run python -m app.environment_registry
-ROBORANK_ENV_CATALOG_MODULE=roborank_envs.catalog uv run pytest
+uv sync
+uv run python -m app.environment_registry
+uv run pytest
 ```
 
-Leaving `ROBORANK_ENV_CATALOG_MODULE` unset keeps RoboRank on its in-repo catalog.
+The RoboRank backend pins this package by git commit in `backend/pyproject.toml`
+and reports the active package version and git SHA from `/health` and run
+metadata.
 
 ## Current Scope
 
@@ -44,11 +46,11 @@ Leaving `ROBORANK_ENV_CATALOG_MODULE` unset keeps RoboRank on its in-repo catalo
 - `docs/challenges/` carries public-facing challenge docs.
 - `samples/policies/` carries sample policies used for parity checks.
 
-## Next Extraction Step
+## Integration Status
 
-Teach the private RoboRank backend to import runner classes from this package
-behind a feature flag, then remove the duplicated runner code from RoboRank only
-after a canary deploy proves the package path in production.
+The private RoboRank backend can execute submitted policies through this package.
+The duplicated internal runner code should stay in RoboRank until a canary deploy
+has proven the package path in production.
 
 ## Authoring Challenges
 
