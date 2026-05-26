@@ -29,6 +29,8 @@ Leaving `ROBORANK_ENV_CATALOG_MODULE` unset keeps RoboRank on its in-repo catalo
 
 ## Current Scope
 
+- `.codex/skills/create-challenge/` contains the repo-local challenge authoring
+  skill, including the brief template and authoring spec.
 - `src/roborank_envs/catalog.py` exposes `list_challenges()` and
   `get_challenge()`.
 - `src/roborank_envs/catalog_data.json` is a snapshot of the current RoboRank
@@ -47,3 +49,11 @@ Leaving `ROBORANK_ENV_CATALOG_MODULE` unset keeps RoboRank on its in-repo catalo
 Teach the private RoboRank backend to import runner classes from this package
 behind a feature flag, then remove the duplicated runner code from RoboRank only
 after a canary deploy proves the package path in production.
+
+## Authoring Challenges
+
+Use `.codex/skills/create-challenge/SKILL.md` as the agent workflow for adding
+or modifying environments. It points to:
+
+- `.codex/skills/create-challenge/references/challenge-authoring-spec.md`
+- `.codex/skills/create-challenge/assets/challenge-brief-template.md`

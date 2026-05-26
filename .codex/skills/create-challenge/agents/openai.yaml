@@ -1,0 +1,4 @@
+interface:
+  display_name: "Create Challenge"
+  short_description: "Add runnable robotics coding challenges"
+  default_prompt: "Use $create-challenge to add a new robotics coding challenge with MuJoCo and Rerun output."
