@@ -15,6 +15,26 @@ uv run roborank-envs list
 ROBORANK_DISABLE_RERUN_EXPORT=1 uv run roborank-envs run diff_drive_reach_target --policy samples/policies/pure_pursuit.py
 ```
 
+## Public CLI
+
+The package also installs the public `roborank` CLI for hosted RoboRank API
+workflows and local challenge evaluation:
+
+```bash
+uv run roborank prime --agent --json
+uv run roborank eval list --json
+uv run roborank eval run diff_drive_reach_target --policy-source samples/policies/pure_pursuit.py --out runs/local-001 --json
+uv run roborank eval submit diff_drive_reach_target --policy-source robot_policy.py --yes --non-interactive --json
+```
+
+`roborank eval run` uses the packaged `roborank_envs.runner` local execution
+path. Install the `visualization` extra when you need upload-ready Rerun `.rrd`
+bundles:
+
+```bash
+uv sync --extra visualization
+```
+
 ## Use From RoboRank
 
 From the RoboRank backend checkout:
@@ -43,6 +63,9 @@ metadata.
   policy API and local policy loading helpers.
 - `src/roborank_envs/runner.py` runs a local policy file against a packaged
   challenge.
+- `src/roborank/cli.py` exposes the public RoboRank CLI, including resource,
+  metrics, evidence, hosted eval submit, local eval run, migration, and launch
+  operator commands.
 - `docs/challenges/` carries public-facing challenge docs.
 - `samples/policies/` carries sample policies used for parity checks.
 
