@@ -11,9 +11,6 @@ jobs:
   pypi-publish:
     name: Build and publish to PyPI
     runs-on: ubuntu-latest
-    environment:
-      name: pypi
-      url: https://pypi.org/p/roborank
     permissions:
       contents: read
       id-token: write
