@@ -20,6 +20,7 @@ visualization = [
 ]
 
 [project.scripts]
+roborank = "roborank.cli:main"
 roborank-envs = "roborank_envs.cli:main"
 
 [dependency-groups]
