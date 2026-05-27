@@ -17,8 +17,15 @@ ROBORANK_DISABLE_RERUN_EXPORT=1 uv run roborank-envs run diff_drive_reach_target
 
 ## Public CLI
 
-The package also installs the public `roborank` CLI for hosted RoboRank API
-workflows and local challenge evaluation:
+The PyPI distribution is published as `roborank` and installs both the public
+`roborank` CLI and the lower-level `roborank-envs` environment runner:
+
+```bash
+pip install roborank
+```
+
+The public CLI supports hosted RoboRank API workflows and local challenge
+evaluation:
 
 ```bash
 uv run roborank prime --agent --json
