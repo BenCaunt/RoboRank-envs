@@ -1,5 +1,6 @@
 .venv/
 .pytest_cache/
+.roborank/auth.json
 __pycache__/
 *.pyc
 *.egg-info/

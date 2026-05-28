@@ -28,6 +28,7 @@ MAX_METRICS_BYTES = 1024 * 1024
 DEFAULT_API_URL = "https://roborank.dev"
 DEFAULT_LICENSE = "CC-BY-4.0"
 API_USER_AGENT = "RoboRank CLI/0.1.0 (+https://roborank.dev)"
+AUTH_FILE_RELATIVE_PATH = Path(".roborank") / "auth.json"
 ALLOWED_LICENSES = {"CC-BY-4.0", "CC0-1.0"}
 RESOURCE_KINDS = {"robot", "environment", "policy", "policy_family"}
 EVIDENCE_VISIBILITIES = {"public", "unlisted", "private"}
@@ -112,6 +113,8 @@ class RoboRankError(Exception):
 class GlobalOptions:
     api_url: str
     token: str | None = None
+    token_source: str | None = None
+    auth_path: str | None = None
     profile: str = "default"
     output_format: str = "human"
     quiet: bool = False
@@ -128,6 +131,7 @@ class Context:
     options: GlobalOptions
     stdout: TextIO
     stderr: TextIO
+    stdin: TextIO
     warnings: list[dict[str, str]] = field(default_factory=list)
 
     @property
@@ -285,6 +289,30 @@ def config_path() -> Path:
         return Path(configured).expanduser()
     return Path.home() / ".config" / "roborank" / "config.toml"
 
+
+def auth_path(base_dir: Path | None = None) -> Path:
+    configured = os.environ.get("ROBORANK_AUTH")
+    if configured:
+        return Path(configured).expanduser()
+    return (base_dir or Path.cwd()) / AUTH_FILE_RELATIVE_PATH
+
+
+def load_auth_data(path: Path) -> dict[str, Any]:
+    if not path.exists():
+        return {}
+    try:
+        data = json.loads(path.read_text())
+    except json.JSONDecodeError as exc:
+        raise RoboRankError(f"{path} is not valid JSON: {exc}", code="invalid_auth_file", exit_code=2) from exc
+    if not isinstance(data, dict):
+        raise RoboRankError(f"{path} must contain a JSON object.", code="invalid_auth_file", exit_code=2)
+    return data
+
+
+def load_auth_file(base_dir: Path | None = None) -> dict[str, Any]:
+    return load_auth_data(auth_path(base_dir))
+
+
 def load_toml_file(path: Path, *, code: str) -> dict[str, Any]:
     if not path.exists():
         return {}
@@ -382,6 +410,8 @@ def extract_global_options(argv: list[str]) -> tuple[GlobalOptions, list[str]]:
     raw_config = load_cli_config()
     profile = values.get("--profile") or os.environ.get("ROBORANK_PROFILE") or config_string(raw_config, "profile") or "default"
     config = profile_config(raw_config, profile)
+    raw_auth = load_auth_file()
+    auth_config = profile_config(raw_auth, profile)
 
     output_format = values.get("--format") or os.environ.get("ROBORANK_FORMAT") or config_string(config, "format", "output_format") or "human"
     if "--json" in bools:
@@ -391,10 +421,36 @@ def extract_global_options(argv: list[str]) -> tuple[GlobalOptions, list[str]]:
     if output_format not in {"human", "json", "yaml"}:
         raise RoboRankError("--format must be human, json, or yaml.", code="usage_error", exit_code=2)
 
+    auth_api_url = config_string(auth_config, "api_url", "api-url")
+    api_url = (
+        values.get("--api-url")
+        or os.environ.get("ROBORANK_API_URL")
+        or config_string(config, "api_url", "api-url")
+        or auth_api_url
+        or DEFAULT_API_URL
+    )
+    flag_token = values.get("--token")
+    env_token = os.environ.get("ROBORANK_TOKEN")
+    config_token = config_string(config, "token")
+    auth_token = config_string(auth_config, "token", "access_token")
+    token = flag_token or env_token or config_token
+    token_source = None
+    if flag_token:
+        token_source = "flag"
+    elif env_token:
+        token_source = "env"
+    elif config_token:
+        token_source = "config"
+    elif auth_token and (not auth_api_url or auth_api_url.rstrip("/") == api_url.rstrip("/")):
+        token = auth_token
+        token_source = "auth_file"
+
     return (
         GlobalOptions(
-            api_url=values.get("--api-url") or os.environ.get("ROBORANK_API_URL") or config_string(config, "api_url", "api-url") or DEFAULT_API_URL,
-            token=values.get("--token") or os.environ.get("ROBORANK_TOKEN") or config_string(config, "token"),
+            api_url=api_url,
+            token=token,
+            token_source=token_source,
+            auth_path=str(auth_path()),
             profile=profile,
             output_format=output_format,
             quiet=option_bool("--quiet", bools, config, "quiet"),
@@ -536,6 +592,56 @@ def load_json(path: Path) -> dict[str, Any]:
 def write_json(path: Path, value: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n")
+
+
+def write_auth_file(path: Path, *, profile: str, api_url: str, token: str) -> None:
+    data = load_auth_data(path)
+    if not isinstance(data, dict):
+        data = {}
+    profiles = data.get("profiles")
+    if not isinstance(profiles, dict):
+        profiles = {}
+    profiles[profile] = {
+        "api_url": api_url.rstrip("/"),
+        "token": token,
+    }
+    data["version"] = 1
+    data["profiles"] = profiles
+    path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        os.chmod(path.parent, 0o700)
+    except OSError:
+        pass
+    path.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n")
+    try:
+        os.chmod(path, 0o600)
+    except OSError:
+        pass
+
+
+def remove_auth_profile(path: Path, *, profile: str) -> bool:
+    if not path.exists():
+        return False
+    data = load_auth_data(path)
+    if not isinstance(data, dict):
+        return False
+    removed = False
+    profiles = data.get("profiles")
+    if isinstance(profiles, dict) and profile in profiles:
+        profiles.pop(profile)
+        removed = True
+    if profile == "default" and "token" in data:
+        data.pop("token", None)
+        data.pop("api_url", None)
+        removed = True
+    if not removed:
+        return False
+    if isinstance(profiles, dict) and profiles:
+        data["profiles"] = profiles
+        path.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n")
+    else:
+        path.unlink()
+    return True
 
 
 def sha256_file(path: Path) -> str:
@@ -947,6 +1053,8 @@ def command_auth(ctx: Context, args: argparse.Namespace) -> int:
             {
                 "authenticated": bool(payload.get("authenticated")),
                 "token_configured": bool(ctx.options.token),
+                "token_source": ctx.options.token_source,
+                "auth_path": ctx.options.auth_path,
                 "api_url": ctx.api_url,
                 "profile": ctx.options.profile,
                 "authSource": payload.get("authSource"),
@@ -976,19 +1084,41 @@ def command_auth(ctx: Context, args: argparse.Namespace) -> int:
         )
         return emit_success(ctx, "auth.token.create", payload)
     if args.auth_command == "logout":
-        return emit_success(ctx, "auth.logout", {"message": "Unset ROBORANK_TOKEN or remove it from your profile config."})
+        removed = remove_auth_profile(Path(ctx.options.auth_path or str(auth_path())), profile=ctx.options.profile)
+        return emit_success(
+            ctx,
+            "auth.logout",
+            {
+                "message": "Removed saved CLI auth if present. Also unset ROBORANK_TOKEN or profile config tokens if configured.",
+                "auth_path": ctx.options.auth_path,
+                "profile": ctx.options.profile,
+                "removed_auth_file_token": removed,
+            },
+        )
     login_url = f"{ctx.api_url.rstrip('/')}/api/auth/cli/login"
     opened_browser = False
     if not getattr(args, "no_browser", False):
         opened_browser = webbrowser.open(login_url)
+    auth_file = Path(ctx.options.auth_path or str(auth_path()))
+    saved = False
+    if not (ctx.json_output or ctx.yaml_output or ctx.options.non_interactive):
+        print(f"Open this URL to create a personal access token: {login_url}", file=ctx.stderr)
+        print("Paste the generated token, then press Enter. Leave blank to skip saving.", file=ctx.stderr)
+        token = ctx.stdin.readline().strip()
+        if token:
+            write_auth_file(auth_file, profile=ctx.options.profile, api_url=ctx.api_url, token=token)
+            saved = True
     return emit_success(
         ctx,
         "auth.login",
         {
-            "message": "Create a personal access token in the browser, then pass it with --token or ROBORANK_TOKEN.",
+            "message": "Create a personal access token in the browser, then paste it into the CLI prompt to save it.",
             "login_url": login_url,
+            "auth_path": str(auth_file),
+            "profile": ctx.options.profile,
             "no_browser": bool(getattr(args, "no_browser", False)),
             "opened_browser": opened_browser,
+            "saved": saved,
         },
     )
 
@@ -2032,14 +2162,20 @@ def command_name(args: argparse.Namespace) -> str:
     return ".".join(parts)
 
 
-def main(argv: list[str] | None = None, stdout: TextIO | None = None, stderr: TextIO | None = None) -> int:
+def main(
+    argv: list[str] | None = None,
+    stdout: TextIO | None = None,
+    stderr: TextIO | None = None,
+    stdin: TextIO | None = None,
+) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
     stdout = stdout or sys.stdout
     stderr = stderr or sys.stderr
+    stdin = stdin or sys.stdin
     command = "unknown"
     try:
         options, filtered = extract_global_options(argv)
-        ctx = Context(options=options, stdout=stdout, stderr=stderr)
+        ctx = Context(options=options, stdout=stdout, stderr=stderr, stdin=stdin)
         parser = build_parser()
         args = parser.parse_args(filtered)
         command = command_name(args)
@@ -2048,10 +2184,20 @@ def main(argv: list[str] | None = None, stdout: TextIO | None = None, stderr: Te
     except SystemExit as exc:
         return int(exc.code) if isinstance(exc.code, int) else 2
     except RoboRankError as exc:
-        ctx = Context(options=options if "options" in locals() else GlobalOptions(api_url=DEFAULT_API_URL), stdout=stdout, stderr=stderr)
+        ctx = Context(
+            options=options if "options" in locals() else GlobalOptions(api_url=DEFAULT_API_URL),
+            stdout=stdout,
+            stderr=stderr,
+            stdin=stdin,
+        )
         return emit_error(ctx, command, exc)
     except Exception as exc:  # noqa: BLE001 - CLI boundary must return structured failures.
-        ctx = Context(options=options if "options" in locals() else GlobalOptions(api_url=DEFAULT_API_URL), stdout=stdout, stderr=stderr)
+        ctx = Context(
+            options=options if "options" in locals() else GlobalOptions(api_url=DEFAULT_API_URL),
+            stdout=stdout,
+            stderr=stderr,
+            stdin=stdin,
+        )
         return emit_error(ctx, command, RoboRankError(str(exc), code="internal_error", exit_code=1))
 
 

@@ -29,10 +29,17 @@ evaluation:
 
 ```bash
 uv run roborank prime --agent --json
+uv run roborank auth login
+uv run roborank auth status --json
 uv run roborank eval list --json
 uv run roborank eval run diff_drive_reach_target --policy-source samples/policies/pure_pursuit.py --out runs/local-001 --json
 uv run roborank eval submit diff_drive_reach_target --policy-source robot_policy.py --yes --non-interactive --json
 ```
+
+`roborank auth login` opens the hosted token page, prompts for the generated
+token, and saves it in the current project at `.roborank/auth.json`. Later CLI
+commands load that file automatically when no `--token`, `ROBORANK_TOKEN`, or
+profile token is configured.
 
 `roborank prime` is intended as the model-facing index for standard RoboRank
 procedures. It defines resource and eval boundaries, then points agents to the
