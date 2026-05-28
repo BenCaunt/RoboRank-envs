@@ -71,8 +71,7 @@ metadata.
 - `src/roborank_envs/runner.py` runs a local policy file against a packaged
   challenge.
 - `src/roborank/cli.py` exposes the public RoboRank CLI, including resource,
-  metrics, evidence, hosted eval submit, local eval run, migration, and launch
-  operator commands.
+  metrics, evidence, hosted eval submit, and local eval run commands.
 - `docs/challenges/` carries public-facing challenge docs.
 - `samples/policies/` carries sample policies used for parity checks.
 
