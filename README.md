@@ -1,6 +1,7 @@
 # RoboRank Envs
 
-Open-source package for RoboRank robotics challenge environments.
+Open-source package for [RoboRank](https://roborank.dev) robotics challenge
+environments.
 
 This package exposes the RoboRank challenge catalog, policy-facing API, and
 simulation runners so environments can be validated and run outside the main
@@ -24,22 +25,49 @@ The PyPI distribution is published as `roborank` and installs both the public
 pip install roborank
 ```
 
-The public CLI supports hosted RoboRank API workflows and local challenge
-evaluation:
+The `roborank` CLI is the agent-friendly entry point for
+[roborank.dev](https://roborank.dev) and for local challenge execution. It can:
+
+- print a machine-readable workflow primer with `roborank prime`
+- authenticate against the hosted app and persist a project-local token
+- list, inspect, and run packaged robotics evals locally
+- submit packaged evals to the hosted API
+- search, read, create, and update RoboRank resource records
+- initialize, validate, and upload evidence bundles with Rerun recordings
+- fetch and validate environment-specific metrics schemas
+
+Start by asking the CLI for the current command index:
 
 ```bash
 uv run roborank prime --agent --json
+```
+
+Authenticate against [roborank.dev](https://roborank.dev) when you need hosted
+resource, evidence, or eval submission workflows:
+
+```bash
 uv run roborank auth login
 uv run roborank auth status --json
-uv run roborank eval list --json
-uv run roborank eval run diff_drive_reach_target --policy-source samples/policies/pure_pursuit.py --out runs/local-001 --json
-uv run roborank eval submit diff_drive_reach_target --policy-source robot_policy.py --yes --non-interactive --json
 ```
 
 `roborank auth login` opens the hosted token page, prompts for the generated
 token, and saves it in the current project at `.roborank/auth.json`. Later CLI
 commands load that file automatically when no `--token`, `ROBORANK_TOKEN`, or
 profile token is configured.
+
+Run packaged evals locally before submitting them:
+
+```bash
+uv run roborank eval list --json
+uv run roborank eval show diff_drive_reach_target --json
+uv run roborank eval run diff_drive_reach_target --policy-source samples/policies/pure_pursuit.py --out runs/local-001 --json
+```
+
+Submit the same policy to the hosted RoboRank API:
+
+```bash
+uv run roborank eval submit diff_drive_reach_target --policy-source robot_policy.py --yes --non-interactive --json
+```
 
 `roborank prime` is intended as the model-facing index for standard RoboRank
 procedures. It defines resource and eval boundaries, then points agents to the
@@ -54,6 +82,15 @@ uv run roborank resources read robot benkant/flat-disk-robot --json
 uv run roborank resources readme robot benkant/flat-disk-robot --out README.md
 uv run roborank resources create robot benkant/flat-disk-robot --title "Flat Disk Robot" --markdown README.md --yes --non-interactive --json
 uv run roborank resources update robot benkant/flat-disk-robot --markdown README.md --yes --non-interactive --json
+```
+
+Metrics and evidence commands cover the upload path for Rerun recordings:
+
+```bash
+uv run roborank metrics schema --environment roborank/diff-drive-reach-target --json
+uv run roborank metrics validate --environment roborank/diff-drive-reach-target metrics.json --json
+uv run roborank evidence validate --from runs/local-001/evidence.json --json
+uv run roborank evidence upload --from runs/local-001/evidence.json --yes --non-interactive --json
 ```
 
 `roborank eval run` uses the packaged `roborank_envs.runner` local execution
