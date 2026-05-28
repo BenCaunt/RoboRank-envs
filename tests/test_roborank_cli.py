@@ -27,6 +27,14 @@ def run_cli_raw(*argv: str) -> tuple[int, str, str]:
     return code, stdout.getvalue(), stderr.getvalue()
 
 
+def run_cli_with_stdin(stdin_text: str, *argv: str) -> tuple[int, str, str]:
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+    stdin = io.StringIO(stdin_text)
+    code = main(list(argv), stdout=stdout, stderr=stderr, stdin=stdin)
+    return code, stdout.getvalue(), stderr.getvalue()
+
+
 class CliTests(unittest.TestCase):
     def test_challenge_resource_cache_covers_env_catalog(self) -> None:
         catalog_ids = {challenge["id"] for challenge in cli_module.list_challenges()}
@@ -956,6 +964,7 @@ visibility = "secret"
         self.assertEqual(code, 0)
         self.assertEqual(payload["result"]["login_url"], "https://roborank.example/api/auth/cli/login")
         self.assertTrue(payload["result"]["opened_browser"])
+        self.assertFalse(payload["result"]["saved"])
         open_browser.assert_called_once_with("https://roborank.example/api/auth/cli/login")
 
     def test_auth_login_no_browser_returns_cli_login_route(self) -> None:
@@ -965,7 +974,106 @@ visibility = "secret"
         self.assertEqual(code, 0)
         self.assertEqual(payload["result"]["login_url"], "https://roborank.example/api/auth/cli/login")
         self.assertFalse(payload["result"]["opened_browser"])
+        self.assertFalse(payload["result"]["saved"])
         open_browser.assert_not_called()
+
+    def test_auth_login_prompts_and_writes_auth_json(self) -> None:
+        old_cwd = Path.cwd()
+        with tempfile.TemporaryDirectory() as directory:
+            workspace = Path(directory)
+            try:
+                os.chdir(workspace)
+                with patch.object(cli_module.webbrowser, "open", return_value=True):
+                    code, stdout, stderr = run_cli_with_stdin(
+                        "rrk_pasted\n",
+                        "--api-url",
+                        "https://roborank.example",
+                        "auth",
+                        "login",
+                    )
+            finally:
+                os.chdir(old_cwd)
+
+            payload = json.loads(stdout)
+            auth_file = workspace / ".roborank" / "auth.json"
+            saved_auth = json.loads(auth_file.read_text())
+
+        self.assertEqual(code, 0)
+        self.assertIn("Paste the generated token", stderr)
+        self.assertTrue(payload["saved"])
+        self.assertEqual(Path(payload["auth_path"]).resolve(), auth_file.resolve())
+        self.assertEqual(saved_auth["profiles"]["default"]["api_url"], "https://roborank.example")
+        self.assertEqual(saved_auth["profiles"]["default"]["token"], "rrk_pasted")
+
+    def test_auth_status_loads_token_from_auth_json(self) -> None:
+        old_cwd = Path.cwd()
+        with tempfile.TemporaryDirectory() as directory:
+            workspace = Path(directory)
+            auth_file = workspace / ".roborank" / "auth.json"
+            auth_file.parent.mkdir()
+            auth_file.write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "profiles": {
+                            "default": {
+                                "api_url": "https://roborank.example",
+                                "token": "auth-file-token",
+                            }
+                        },
+                    }
+                )
+            )
+
+            def fake_request_json(api: ApiClient, method: str, path: str, **kwargs):
+                self.assertEqual(api.api_url, "https://roborank.example")
+                self.assertEqual(api.token, "auth-file-token")
+                self.assertEqual(method, "GET")
+                self.assertEqual(path, "/api/auth/cli/status")
+                return {"authenticated": True, "authSource": "access_token", "user": {"email": "dev@example.com"}}
+
+            try:
+                os.chdir(workspace)
+                with patch.dict(os.environ, {"ROBORANK_CONFIG": str(workspace / "missing.toml")}, clear=True):
+                    with patch.object(ApiClient, "request_json", fake_request_json):
+                        code, payload = run_cli("auth", "status", "--json")
+            finally:
+                os.chdir(old_cwd)
+
+        self.assertEqual(code, 0)
+        self.assertEqual(Path(payload["result"]["auth_path"]).resolve(), auth_file.resolve())
+        self.assertEqual(payload["result"]["token_source"], "auth_file")
+        self.assertTrue(payload["result"]["token_configured"])
+        self.assertTrue(payload["result"]["authenticated"])
+
+    def test_auth_logout_removes_auth_json_token(self) -> None:
+        old_cwd = Path.cwd()
+        with tempfile.TemporaryDirectory() as directory:
+            workspace = Path(directory)
+            auth_file = workspace / ".roborank" / "auth.json"
+            auth_file.parent.mkdir()
+            auth_file.write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "profiles": {
+                            "default": {
+                                "api_url": "https://roborank.example",
+                                "token": "auth-file-token",
+                            }
+                        },
+                    }
+                )
+            )
+            try:
+                os.chdir(workspace)
+                code, payload = run_cli("auth", "logout", "--json")
+            finally:
+                os.chdir(old_cwd)
+
+        self.assertEqual(code, 0)
+        self.assertTrue(payload["result"]["removed_auth_file_token"])
+        self.assertFalse(auth_file.exists())
 
     def test_auth_token_create_rejects_invalid_scope(self) -> None:
         code, payload = run_cli("auth", "token", "create", "--scope", "admin", "--json")
