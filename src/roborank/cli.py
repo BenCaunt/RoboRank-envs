@@ -698,9 +698,15 @@ def metrics_setup_source_data(path: Path, schema: dict[str, Any] | None) -> dict
     return raw
 
 
-def command_prime(ctx: Context, args: argparse.Namespace) -> int:
-    primer = {
+def build_agent_primer(args: argparse.Namespace) -> dict[str, Any]:
+    return {
         "primer_version": "roborank-agent-primer-v0",
+        "index_version": "roborank-procedures-index-v1",
+        "purpose": (
+            "Use prime as the starting index for RoboRank automation. It names the stable concepts, "
+            "the boundaries of each concept, and the standard command procedures to discover the "
+            "remaining details from the API instead of guessing."
+        ),
         "model": {
             "primary_artifact": "recording.rrd",
             "required_tags": ["robot", "environment", "policy"],
@@ -710,45 +716,223 @@ def command_prime(ctx: Context, args: argparse.Namespace) -> int:
             "default_license": DEFAULT_LICENSE,
             "allowed_licenses": sorted(ALLOWED_LICENSES),
         },
-        "rules": [
-            "One evidence run is one Rerun .rrd recording.",
-            "Do not fabricate RoboRank resource IDs; search or resolve them through the API.",
-            "Validate metrics.json before upload when the environment has an active schema.",
-            "Do not upload policy source code as public evidence through evidence upload.",
+        "terms": [
+            {
+                "term": "resource",
+                "definition": (
+                    "A canonical RoboRank object that evidence can reference: robot, environment, "
+                    "policy, or policy_family."
+                ),
+                "boundary": (
+                    "Resources carry identity, ownership, summary metadata, aliases, and README "
+                    "markdown. They are not evidence artifacts, private policy source, or eval results."
+                ),
+            },
+            {
+                "term": "resource_id",
+                "definition": "The stable external identifier for a resource, formatted as <namespace>/<slug>.",
+                "boundary": "Do not fabricate IDs. Search, read, or resolve them through the API.",
+            },
+            {
+                "term": "README markdown",
+                "definition": "The resource page body stored as markdown and returned in the resource payload.",
+                "boundary": "Use it for public documentation and provenance, not for secrets or private source.",
+            },
+            {
+                "term": "eval",
+                "definition": "A RoboRank challenge execution against a policy, either local or hosted.",
+                "boundary": (
+                    "Evals execute packaged RoboRank challenges. They are not general robotics jobs, "
+                    "ad hoc simulations, or resource records."
+                ),
+            },
+            {
+                "term": "evidence",
+                "definition": "A submitted run artifact, normally one Rerun .rrd plus optional metrics.json.",
+                "boundary": (
+                    "Evidence links resources to an observed run. Public evidence upload does not upload "
+                    "policy source code by default."
+                ),
+            },
+            {
+                "term": "metrics",
+                "definition": "Structured JSON values validated against an environment metrics schema when one exists.",
+                "boundary": "Metrics summarize a run; they do not replace the Rerun recording or resource tags.",
+            },
+        ],
+        "standard_procedures": [
+            {
+                "name": "Authenticate",
+                "when": "Before reads that require identity or any resource/evidence write.",
+                "steps": [
+                    "Check the active API URL and token source.",
+                    "Create or configure a token with the smallest required scopes.",
+                ],
+                "commands": [
+                    "roborank auth status --json",
+                    "roborank auth login",
+                    "roborank auth token create --scope resources:read --scope resources:write --json",
+                ],
+            },
+            {
+                "name": "Discover resources",
+                "when": "Before tagging evidence, creating related resources, or reading docs for dependencies.",
+                "steps": [
+                    "Search by kind, namespace, or text.",
+                    "Read the canonical resource payload.",
+                    "Resolve aliases before storing or reusing an ID.",
+                ],
+                "commands": [
+                    'roborank resources search --kind robot --query "<name>" --json',
+                    "roborank resources read robot <namespace>/<slug> --json",
+                    "roborank resources resolve robot <namespace>/<slug> --json",
+                ],
+            },
+            {
+                "name": "Manage resources",
+                "when": "When a robot, environment, policy, or policy family needs a canonical public record.",
+                "steps": [
+                    "Choose the correct kind and canonical resource ID.",
+                    "Create the record with a title, summary, and README markdown.",
+                    "Update metadata or rename with --new-id only when the old ID should become an alias.",
+                    "Retrieve README markdown when another workflow needs resource-specific instructions.",
+                ],
+                "commands": [
+                    'roborank resources create robot <namespace>/<slug> --title "<title>" --summary "<summary>" --markdown README.md --yes --non-interactive --json',
+                    "roborank resources update robot <namespace>/<slug> --markdown README.md --yes --non-interactive --json",
+                    "roborank resources readme robot <namespace>/<slug> --out README.md",
+                ],
+            },
+            {
+                "name": "Prepare evidence upload",
+                "when": "Before pushing a Rerun recording into RoboRank.",
+                "steps": [
+                    "Resolve robot, environment, and exact policy IDs.",
+                    "Fetch the environment metrics schema.",
+                    "Create or validate metrics.json when a schema exists.",
+                    "Upload one .rrd recording under the size limit with explicit license and visibility.",
+                ],
+                "commands": [
+                    "roborank metrics schema --environment <namespace>/<slug> --json",
+                    "roborank metrics setup --environment <namespace>/<slug> --from result.json --out metrics.json",
+                    "roborank metrics validate --environment <namespace>/<slug> metrics.json --json",
+                    (
+                        "roborank evidence upload --rrd recording.rrd --metrics metrics.json "
+                        "--robot <namespace>/<slug> --environment <namespace>/<slug> --policy <namespace>/<slug> "
+                        "--license CC-BY-4.0 --yes --non-interactive --json"
+                    ),
+                ],
+            },
+            {
+                "name": "Run evals",
+                "when": "When validating a policy locally or creating an upload-ready run bundle.",
+                "steps": [
+                    "List or inspect packaged challenges.",
+                    "Run locally with a policy source file and an output directory.",
+                    "Use the generated recording and metrics with evidence commands when publishing.",
+                ],
+                "commands": [
+                    "roborank eval list --json",
+                    "roborank eval show <challenge_id> --json",
+                    "roborank eval run <challenge_id> --policy-source robot_policy.py --out runs/local-001 --json",
+                ],
+            },
         ],
         "commands": {
+            "auth_status": "roborank auth status --json",
             "resource_search": 'roborank resources search --kind robot --query "<name>" --json',
+            "resource_read": "roborank resources read robot <namespace>/<slug> --json",
             "resource_resolve": "roborank resources resolve robot <namespace>/<slug> --json",
+            "resource_create": 'roborank resources create robot <namespace>/<slug> --title "<title>" --markdown README.md --yes --non-interactive --json',
+            "resource_update": "roborank resources update robot <namespace>/<slug> --markdown README.md --yes --non-interactive --json",
+            "resource_readme": "roborank resources readme robot <namespace>/<slug> --out README.md",
             "metrics_schema": "roborank metrics schema --environment <namespace>/<slug> --json",
             "metrics_init": "roborank metrics init --environment <namespace>/<slug> --out metrics.json",
+            "metrics_setup": "roborank metrics setup --environment <namespace>/<slug> --from result.json --out metrics.json",
             "metrics_validate": "roborank metrics validate --environment <namespace>/<slug> metrics.json --json",
             "evidence_upload": (
                 "roborank evidence upload --rrd recording.rrd --metrics metrics.json "
                 "--robot <namespace>/<slug> --environment <namespace>/<slug> --policy <namespace>/<slug> "
                 "--license CC-BY-4.0 --yes --non-interactive --json"
             ),
+            "eval_run": "roborank eval run <challenge_id> --policy-source robot_policy.py --out runs/local-001 --json",
         },
+        "resource_management": {
+            "kinds": sorted(RESOURCE_KINDS),
+            "read_paths": [
+                "roborank resources search --kind <kind> --query <text> --json",
+                "roborank resources read <kind> <namespace>/<slug> --json",
+                "roborank resources resolve <kind> <namespace>/<slug> --json",
+                "roborank resources readme <kind> <namespace>/<slug> --out README.md",
+            ],
+            "write_paths": [
+                "roborank resources create <kind> <namespace>/<slug> --title <title> --markdown README.md --yes --non-interactive --json",
+                "roborank resources update <kind> <namespace>/<slug> --markdown README.md --yes --non-interactive --json",
+            ],
+            "boundaries": [
+                "A robot resource describes the physical or simulated robot platform.",
+                "An environment resource describes the task world, challenge, or metrics context.",
+                "A policy resource describes one exact policy implementation or submitted behavior.",
+                "A policy_family resource groups related policy variants and runs.",
+            ],
+        },
+        "rules": [
+            "One evidence run is one Rerun .rrd recording.",
+            "Do not fabricate RoboRank resource IDs; search, read, or resolve them through the API.",
+            "Validate metrics.json before upload when the environment has an active schema.",
+            "Do not upload policy source code as public evidence through evidence upload.",
+        ],
         "task": args.task,
         "environment": args.environment,
         "challenge": args.challenge,
     }
+
+
+def command_prime(ctx: Context, args: argparse.Namespace) -> int:
+    primer = build_agent_primer(args)
     if ctx.json_output or ctx.yaml_output:
         return emit_success(ctx, "prime", primer)
     text = f"""# RoboRank Agent Primer
 
-One evidence run is one Rerun `.rrd` recording. Required tags are robot,
-environment, and exact policy. Policy family is optional but recommended.
+Use this as the index for RoboRank automation. It is not a help screen; it names
+the stable terms and standard procedures the model should follow before
+guessing at IDs, schemas, or upload metadata.
+
+## Terms
+
+- Resource: a canonical robot, environment, policy, or policy_family record.
+  Boundary: metadata, aliases, ownership, and README markdown only; not evidence
+  artifacts or private policy source.
+- Eval: a packaged RoboRank challenge execution against a policy. Boundary:
+  local or hosted RoboRank challenges only; not arbitrary simulation jobs.
+- Evidence: one observed run artifact, normally one `.rrd` recording plus
+  optional `metrics.json`. Boundary: links resources to a run; public upload
+  does not upload policy source code by default.
+- Metrics: JSON values validated against an environment schema when one exists.
+  Boundary: summary data for the run, not a replacement for the recording.
 
 Do not fabricate RoboRank resource IDs. Use:
 
 ```text
 roborank resources search --kind robot --query "<name>" --json
+roborank resources read robot <namespace>/<slug> --json
 roborank resources resolve robot <namespace>/<slug> --json
+roborank resources readme robot <namespace>/<slug> --out README.md
 ```
 
-Before uploading evidence, ensure the Rerun file is a single `.rrd` under 40 MB,
-check the environment metrics schema, validate metrics when required, and upload
-with an explicit public artifact license.
+## Standard Procedures
+
+1. Authenticate with `roborank auth status --json`, then configure a token with
+   the smallest required scopes.
+2. Discover resources with `resources search`, read canonical payloads with
+   `resources read`, and resolve aliases with `resources resolve`.
+3. Create or update public resource records with README markdown:
+   `roborank resources create robot <namespace>/<slug> --title "<title>" --markdown README.md --yes --non-interactive --json`
+4. Before evidence upload, ensure the Rerun file is a single `.rrd` under 40 MB,
+   check the environment metrics schema, validate metrics when required, and
+   upload with an explicit artifact license.
+5. For local evals, run:
+   `roborank eval run <challenge_id> --policy-source robot_policy.py --out runs/local-001 --json`
 """
     print(textwrap.dedent(text).strip(), file=ctx.stdout)
     return 0
@@ -820,21 +1004,68 @@ def resource_result_command(ctx: Context, args: argparse.Namespace, command: str
     return emit_success(ctx, command, payload)
 
 
+def read_resource(api: ApiClient, kind: str, resource_id: str) -> dict[str, Any]:
+    namespace, slug = canonical_id_parts(resource_id)
+    return api.request_json("GET", f"/api/resources/{kind}/{namespace}/{slug}")
+
+
+def resource_payload_object(payload: dict[str, Any]) -> dict[str, Any]:
+    resource = payload.get("resource")
+    return resource if isinstance(resource, dict) else payload
+
+
+def resource_markdown(payload: dict[str, Any]) -> str:
+    resource = resource_payload_object(payload)
+    for container in (resource, payload):
+        markdown = container.get("markdown")
+        if isinstance(markdown, str):
+            return markdown
+    return ""
+
+
+def write_text(path: Path, value: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(value)
+
+
 def command_resources(ctx: Context, args: argparse.Namespace) -> int:
     api = client(ctx)
     if args.resources_command in {"search", "list"}:
         return resource_result_command(ctx, args, f"resources.{args.resources_command}")
-    if args.resources_command in {"show", "resolve"}:
-        namespace, slug = canonical_id_parts(args.resource_id)
+    if args.resources_command in {"show", "read", "resolve", "readme"}:
         if args.kind not in RESOURCE_KINDS:
             raise RoboRankError("Invalid resource kind.", code="usage_error", exit_code=2)
-        path = (
-            "/api/resources/resolve"
-            if args.resources_command == "resolve"
-            else f"/api/resources/{args.kind}/{namespace}/{slug}"
-        )
-        params = {"kind": args.kind, "id": args.resource_id} if args.resources_command == "resolve" else None
-        payload = api.request_json("GET", path, params=params)
+        if args.resources_command == "resolve":
+            canonical_id_parts(args.resource_id)
+            payload = api.request_json("GET", "/api/resources/resolve", params={"kind": args.kind, "id": args.resource_id})
+        else:
+            payload = read_resource(api, args.kind, args.resource_id)
+        if args.resources_command == "readme":
+            markdown = resource_markdown(payload)
+            resource = resource_payload_object(payload)
+            warnings = []
+            if not markdown:
+                warnings.append({"code": "resource_readme_empty", "message": "Resource has no README markdown."})
+            result = {
+                "resource": {
+                    "kind": resource.get("kind", args.kind),
+                    "canonicalId": resource.get("canonicalId") or resource.get("canonical_id") or args.resource_id,
+                },
+                "readme": markdown,
+            }
+            if args.out:
+                write_text(Path(args.out), markdown)
+                result["path"] = args.out
+                return emit_success(ctx, "resources.readme", result, warnings=warnings)
+            if ctx.json_output or ctx.yaml_output:
+                return emit_success(ctx, "resources.readme", result, warnings=warnings)
+            if markdown:
+                ctx.stdout.write(markdown)
+                if not markdown.endswith("\n"):
+                    ctx.stdout.write("\n")
+            for warning in warnings:
+                print(f"warning: {warning['message']}", file=ctx.stderr)
+            return 9 if warnings and ctx.options.fail_on_warning else 0
         return emit_success(ctx, f"resources.{args.resources_command}", payload)
     namespace, slug = canonical_id_parts(args.resource_id)
     body_namespace, body_slug = canonical_id_parts(args.new_id) if getattr(args, "new_id", None) else (namespace, slug)
@@ -1667,11 +1898,16 @@ def build_parser() -> argparse.ArgumentParser:
         cmd.add_argument("--owner")
         cmd.add_argument("--limit", type=int, default=25)
         cmd.set_defaults(handler=command_resources)
-    for name in ("show", "resolve"):
+    for name in ("show", "read", "resolve"):
         cmd = resources_sub.add_parser(name)
         cmd.add_argument("kind", choices=sorted(RESOURCE_KINDS))
         cmd.add_argument("resource_id")
         cmd.set_defaults(handler=command_resources)
+    readme = resources_sub.add_parser("readme")
+    readme.add_argument("kind", choices=sorted(RESOURCE_KINDS))
+    readme.add_argument("resource_id")
+    readme.add_argument("--out")
+    readme.set_defaults(handler=command_resources)
     for name in ("create", "update"):
         cmd = resources_sub.add_parser(name)
         cmd.add_argument("kind", choices=sorted(RESOURCE_KINDS))

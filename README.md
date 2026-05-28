@@ -34,6 +34,21 @@ uv run roborank eval run diff_drive_reach_target --policy-source samples/policie
 uv run roborank eval submit diff_drive_reach_target --policy-source robot_policy.py --yes --non-interactive --json
 ```
 
+`roborank prime` is intended as the model-facing index for standard RoboRank
+procedures. It defines resource and eval boundaries, then points agents to the
+commands they should use to discover canonical IDs, resource README markdown,
+metrics schemas, and upload steps.
+
+Resource management commands cover the normal read/write loop:
+
+```bash
+uv run roborank resources search --kind robot --query "flat disk" --json
+uv run roborank resources read robot benkant/flat-disk-robot --json
+uv run roborank resources readme robot benkant/flat-disk-robot --out README.md
+uv run roborank resources create robot benkant/flat-disk-robot --title "Flat Disk Robot" --markdown README.md --yes --non-interactive --json
+uv run roborank resources update robot benkant/flat-disk-robot --markdown README.md --yes --non-interactive --json
+```
+
 `roborank eval run` uses the packaged `roborank_envs.runner` local execution
 path. Install the `visualization` extra when you need upload-ready Rerun `.rrd`
 bundles:
