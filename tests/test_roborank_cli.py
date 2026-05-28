@@ -41,8 +41,17 @@ class CliTests(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertTrue(payload["ok"])
         self.assertEqual(payload["result"]["primer_version"], "roborank-agent-primer-v0")
+        self.assertEqual(payload["result"]["index_version"], "roborank-procedures-index-v1")
         self.assertEqual(payload["result"]["model"]["max_rrd_bytes"], 41943040)
         self.assertIn("robot", payload["result"]["model"]["required_tags"])
+        terms = {item["term"]: item for item in payload["result"]["terms"]}
+        self.assertIn("resource", terms)
+        self.assertIn("boundary", terms["resource"])
+        self.assertIn("eval", terms)
+        procedure_names = {item["name"] for item in payload["result"]["standard_procedures"]}
+        self.assertIn("Manage resources", procedure_names)
+        self.assertIn("resource_read", payload["result"]["commands"])
+        self.assertIn("resource_readme", payload["result"]["commands"])
 
     def test_format_yaml_outputs_structured_envelope(self) -> None:
         code, stdout, stderr = run_cli_raw("--format", "yaml", "prime", "--agent")
@@ -971,6 +980,76 @@ visibility = "secret"
         self.assertEqual(code, 2)
         self.assertFalse(payload["ok"])
         self.assertEqual(payload["error"]["code"], "invalid_token_scope")
+
+    def test_resources_read_fetches_canonical_resource(self) -> None:
+        def fake_request_json(api: ApiClient, method: str, path: str, **kwargs):
+            self.assertEqual(method, "GET")
+            self.assertEqual(path, "/api/resources/robot/benkant/flat-disk")
+            self.assertNotIn("params", kwargs)
+            return {
+                "resource": {
+                    "kind": "robot",
+                    "canonicalId": "benkant/flat-disk",
+                    "displayName": "Flat Disk",
+                    "markdown": "# Flat Disk\n",
+                }
+            }
+
+        with patch.object(ApiClient, "request_json", fake_request_json):
+            code, payload = run_cli("resources", "read", "robot", "benkant/flat-disk", "--json")
+
+        self.assertEqual(code, 0)
+        self.assertEqual(payload["command"], "resources.read")
+        self.assertEqual(payload["result"]["resource"]["canonicalId"], "benkant/flat-disk")
+
+    def test_resources_readme_prints_markdown(self) -> None:
+        def fake_request_json(api: ApiClient, method: str, path: str, **kwargs):
+            self.assertEqual(method, "GET")
+            self.assertEqual(path, "/api/resources/robot/benkant/flat-disk")
+            return {
+                "resource": {
+                    "kind": "robot",
+                    "canonicalId": "benkant/flat-disk",
+                    "markdown": "# Flat Disk\n\nResource notes.\n",
+                }
+            }
+
+        with patch.object(ApiClient, "request_json", fake_request_json):
+            code, stdout, stderr = run_cli_raw("resources", "readme", "robot", "benkant/flat-disk")
+
+        self.assertEqual(code, 0)
+        self.assertEqual(stdout, "# Flat Disk\n\nResource notes.\n")
+        self.assertEqual(stderr, "")
+
+    def test_resources_readme_can_write_file(self) -> None:
+        def fake_request_json(api: ApiClient, method: str, path: str, **kwargs):
+            self.assertEqual(method, "GET")
+            self.assertEqual(path, "/api/resources/environment/benkant/warehouse")
+            return {
+                "resource": {
+                    "kind": "environment",
+                    "canonicalId": "benkant/warehouse",
+                    "markdown": "# Warehouse\n",
+                }
+            }
+
+        with tempfile.TemporaryDirectory() as directory, patch.object(ApiClient, "request_json", fake_request_json):
+            out_path = Path(directory) / "README.md"
+            code, payload = run_cli(
+                "resources",
+                "readme",
+                "environment",
+                "benkant/warehouse",
+                "--out",
+                str(out_path),
+                "--json",
+            )
+            readme_text = out_path.read_text()
+
+        self.assertEqual(code, 0)
+        self.assertEqual(payload["command"], "resources.readme")
+        self.assertEqual(payload["result"]["path"], str(out_path))
+        self.assertEqual(readme_text, "# Warehouse\n")
 
     def test_resource_update_can_rename_canonical_id(self) -> None:
         def fake_request_json(api: ApiClient, method: str, path: str, **kwargs):
