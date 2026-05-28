@@ -17,6 +17,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -37,6 +39,40 @@ jobs:
 
       - name: Check distributions
         run: python -m twine check dist/*
+
+      - name: Validate release version
+        run: |
+          python - <<'PY'
+          import email
+          import glob
+          import os
+          import sys
+          import zipfile
+          from pathlib import Path
+
+          tag = os.environ["GITHUB_REF_NAME"]
+          if not tag.startswith("v"):
+              raise SystemExit(f"release tag must start with 'v': {tag}")
+          expected = tag[1:]
+          wheels = glob.glob("dist/*.whl")
+          if len(wheels) != 1:
+              raise SystemExit(f"expected exactly one wheel in dist/, found {len(wheels)}")
+          with zipfile.ZipFile(wheels[0]) as wheel:
+              metadata_path = next(
+                  name for name in wheel.namelist() if name.endswith(".dist-info/METADATA")
+              )
+              metadata = email.message_from_bytes(wheel.read(metadata_path))
+          actual = metadata["Version"]
+          if actual != expected:
+              raise SystemExit(
+                  f"release tag {tag} does not match built package version {actual}"
+              )
+          for artifact in glob.glob("dist/*"):
+              name = Path(artifact).name
+              if not name.startswith(f"roborank-{expected}"):
+                  raise SystemExit(f"unexpected release artifact for {tag}: {name}")
+          print(f"Release tag {tag} matches built package version {actual}.")
+          PY
 
       - name: Publish distributions to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
