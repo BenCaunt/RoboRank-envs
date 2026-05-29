@@ -7,8 +7,9 @@ name = "roborank"
 dynamic = ["version"]
 description = "Open RoboRank robotics challenge environment catalog."
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.11,<3.12"
 dependencies = [
+  "gtsam>=4.2",
   "numpy>=1.26.0",
   "pydantic>=2.8.0",
 ]

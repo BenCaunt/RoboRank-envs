@@ -62,6 +62,12 @@ def test_get_challenge_returns_defensive_copy() -> None:
     assert fresh["title"] == "Differential Drive: Reach Target"
 
 
+def test_gtsam_is_available_for_environment_policies() -> None:
+    import gtsam
+
+    assert gtsam.Pose2()
+
+
 @pytest.mark.parametrize(("challenge_id", "policy_path"), SAMPLE_POLICIES.items())
 def test_sample_policy_runs_locally(challenge_id: str, policy_path: str, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("ROBORANK_DISABLE_RERUN_EXPORT", "1")
