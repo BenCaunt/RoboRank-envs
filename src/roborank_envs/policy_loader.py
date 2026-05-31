@@ -11,6 +11,7 @@ import numpy as np
 from roborank_envs.policy_api import (
     Actuator,
     AerialRobot,
+    AccelerationEstimator1D,
     AprilTagPoseEstimate,
     CartPole,
     CartPoleState,
@@ -47,6 +48,7 @@ PROJECT_ROOT = PACKAGE_ROOT.parents[1]
 POLICY_GLOBALS = {
     "Actuator": Actuator,
     "AerialRobot": AerialRobot,
+    "AccelerationEstimator1D": AccelerationEstimator1D,
     "AprilTagPoseEstimate": AprilTagPoseEstimate,
     "CartPole": CartPole,
     "CartPoleState": CartPoleState,

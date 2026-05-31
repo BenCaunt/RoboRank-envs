@@ -368,6 +368,58 @@ class ProfiledCart1D(ControlSystem):
         return self._acceleration_command_mps2
 
 
+class AccelerationEstimator1D(ControlSystem):
+    """Runtime API injected into wall-distance acceleration-estimation policy code."""
+
+    def __init__(
+        self,
+        *,
+        wall_position_m: float,
+        track_half_width_m: float,
+        distance_noise_std_m: float,
+        distance_quantization_m: float,
+        dt: float,
+        max_steps: int,
+        seed: int,
+    ) -> None:
+        self.wall_position_m = float(wall_position_m)
+        self.track_half_width_m = float(track_half_width_m)
+        self.distance_noise_std_m = float(distance_noise_std_m)
+        self.distance_quantization_m = float(distance_quantization_m)
+        self.dt = float(dt)
+        self.max_steps = int(max_steps)
+        self.seed = int(seed)
+        self.time = 0.0
+        self._distance_m = self.wall_position_m
+        self._acceleration_estimate_mps2: float | None = None
+
+    def distance_to_wall(self) -> float:
+        return self._distance_m
+
+    def submit_acceleration(self, acceleration_mps2: float) -> None:
+        try:
+            acceleration = float(acceleration_mps2)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("Acceleration estimate must be numeric.") from exc
+
+        if not math.isfinite(acceleration):
+            raise ValueError("Acceleration estimate must be finite.")
+
+        self._acceleration_estimate_mps2 = acceleration
+
+    def _update(self, *, time: float, distance_m: float) -> None:
+        self.time = float(time)
+        self._distance_m = float(distance_m)
+
+    def _clear_submission(self) -> None:
+        self._acceleration_estimate_mps2 = None
+
+    def _consume_acceleration_estimate(self) -> float:
+        if self._acceleration_estimate_mps2 is None:
+            raise ValueError("RobotPolicy.step(cart) must call cart.submit_acceleration(acceleration_mps2).")
+        return self._acceleration_estimate_mps2
+
+
 class DifferentialDrive(MobileRobot):
     """Runtime API injected into differential-drive policy code."""
 

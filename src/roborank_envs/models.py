@@ -277,6 +277,19 @@ class MotionProfileStateSample(BaseModel):
     velocity_limit_violation: bool = False
 
 
+class AccelerationEstimateSample(BaseModel):
+    t: float
+    frame_index: int
+    position_m: float
+    velocity_mps: float
+    acceleration_mps2: float
+    wall_position_m: float
+    measured_distance_m: float
+    measured_position_m: float
+    estimated_acceleration_mps2: float
+    acceleration_error_mps2: float
+
+
 class InverseKinematicsSample(BaseModel):
     t: float
     frame_index: int
@@ -364,6 +377,7 @@ class ScoreMetrics(BaseModel):
         "gate_sequence",
         "cart_pole",
         "motion_profile",
+        "acceleration_estimation",
         "inverse_kinematics",
         "slam",
     ] = "navigation"
@@ -416,6 +430,13 @@ class ScoreMetrics(BaseModel):
     velocity_limit_violation_count: int | None = None
     optimal_time_sec: float | None = None
     finish_time_sec: float | None = None
+    acceleration_rmse_mps2: float | None = None
+    mean_abs_acceleration_error_mps2: float | None = None
+    final_acceleration_error_mps2: float | None = None
+    phase_lag_sec: float | None = None
+    acceleration_correlation: float | None = None
+    derivative_baseline_rmse_mps2: float | None = None
+    moving_average_baseline_rmse_mps2: float | None = None
     target_count: int | None = None
     joint_limit_violation_count: int | None = None
     map_chamfer_error_m: float | None = None
@@ -436,6 +457,7 @@ class ReplayTrace(BaseModel):
     cart_pole_states: list[CartPoleStateSample] = Field(default_factory=list)
     motion_profile_controls: list[MotionProfileControlSample] = Field(default_factory=list)
     motion_profile_states: list[MotionProfileStateSample] = Field(default_factory=list)
+    acceleration_estimates: list[AccelerationEstimateSample] = Field(default_factory=list)
     inverse_kinematics_samples: list[InverseKinematicsSample] = Field(default_factory=list)
     render_frames: list[RenderFrame] = Field(default_factory=list)
     lidar_scans: list[LidarScanSample] = Field(default_factory=list)

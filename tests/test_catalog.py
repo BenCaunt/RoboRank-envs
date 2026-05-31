@@ -20,6 +20,7 @@ SAMPLE_POLICIES = {
     "cart_pole": "cart_pole_stabilizer.py",
     "cart_pole_minimum_phase": "cart_pole_minimum_phase.py",
     "trapezoidal_motion_profile": "trapezoidal_motion_profile.py",
+    "kalman_acceleration_estimation": "kalman_acceleration_estimator.py",
     "inverse_kinematics_1": "inverse_kinematics_1.py",
     "inverse_kinematics_2": "inverse_kinematics_2.py",
     "inverse_kinematics_3": "inverse_kinematics_3.py",
@@ -29,7 +30,7 @@ SAMPLE_POLICIES = {
 def test_catalog_contains_current_roborank_challenges() -> None:
     challenges = list_challenges()
 
-    assert len(challenges) == 16
+    assert len(challenges) == 17
     assert challenges[0]["id"] == "diff_drive_reach_target"
     assert {challenge["id"] for challenge in challenges} == {
         "diff_drive_reach_target",
@@ -45,6 +46,7 @@ def test_catalog_contains_current_roborank_challenges() -> None:
         "cart_pole",
         "cart_pole_minimum_phase",
         "trapezoidal_motion_profile",
+        "kalman_acceleration_estimation",
         "inverse_kinematics_1",
         "inverse_kinematics_2",
         "inverse_kinematics_3",
@@ -98,3 +100,36 @@ def test_motion_profile_penalizes_acceleration_limit_violations(monkeypatch: pyt
     assert result.metrics.status == "limit_violation"
     assert result.metrics.acceleration_limit_violation_count == 4
     assert any(sample.acceleration_limit_violation for sample in result.replay.motion_profile_states)
+
+
+def test_acceleration_estimation_rejects_raw_second_difference(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("ROBORANK_DISABLE_RERUN_EXPORT", "1")
+
+    class DoubleDifferencePolicy:
+        def __init__(self):
+            self.positions = []
+
+        def step(self, cart):
+            position = cart.wall_position_m - cart.distance_to_wall()
+            self.positions.append(position)
+            if len(self.positions) < 3:
+                cart.submit_acceleration(0.0)
+                return
+            acceleration = (
+                self.positions[-1]
+                - 2.0 * self.positions[-2]
+                + self.positions[-3]
+            ) / (cart.dt * cart.dt)
+            cart.submit_acceleration(acceleration)
+
+    challenge = get_challenge_spec("kalman_acceleration_estimation")
+    assert challenge is not None
+
+    result = run_policy(challenge=challenge, policy=DoubleDifferencePolicy(), seed=29)
+
+    assert result.metrics.success is False
+    assert result.metrics.metric_kind == "acceleration_estimation"
+    assert result.metrics.acceleration_rmse_mps2 is not None
+    assert result.metrics.acceleration_rmse_mps2 > challenge.success_conditions["rms_acceleration_error_mps2"]
+    assert result.metrics.derivative_baseline_rmse_mps2 == result.metrics.acceleration_rmse_mps2
+    assert result.replay.acceleration_estimates
