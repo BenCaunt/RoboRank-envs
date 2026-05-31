@@ -72,6 +72,7 @@ CHALLENGE_RESOURCE_CACHE: dict[str, tuple[str, str]] = {
     "imu_collision_detection": ("roborank/mobile-probe-v1", "roborank/imu-collision-detection"),
     "motor_torque_scale_control": ("roborank/motor-stand-scale-v1", "roborank/motor-torque-scale-control"),
     "trapezoidal_motion_profile": ("roborank/profiled-cart-1d-v1", "roborank/trapezoidal-motion-profile"),
+    "kalman_acceleration_estimation": ("roborank/profiled-cart-1d-v1", "roborank/kalman-acceleration-estimation"),
     "inverse_kinematics_1": ("roborank/planar-2link-arm-v1", "roborank/inverse-kinematics-1"),
     "inverse_kinematics_2": ("roborank/turret-2link-arm-v1", "roborank/inverse-kinematics-2"),
     "inverse_kinematics_3": ("roborank/five-bar-scara-v1", "roborank/inverse-kinematics-3"),

@@ -1021,6 +1021,58 @@
     }
   },
   {
+    "id": "kalman_acceleration_estimation",
+    "title": "Kalman Acceleration Estimation",
+    "difficulty": "intermediate",
+    "description": "Estimate the acceleration of a hidden 1D cart from a noisy wall-distance sensor while the cart moves back and forth on a track.",
+    "robot": {
+      "type": "profiled_cart_1d",
+      "model": "profiled_cart_1d_v1",
+      "cart_mass_kg": 1.2,
+      "cart_width_m": 0.28,
+      "cart_height_m": 0.16,
+      "track_half_width_m": 4.2,
+      "max_velocity_mps": 2.2,
+      "max_acceleration_mps2": 3.0
+    },
+    "sensors": [
+      "wall_distance_1d",
+      "distance_sensor_model"
+    ],
+    "actuators": [
+      "acceleration_estimate"
+    ],
+    "objective": "Submit the cart's current acceleration each timestep from noisy distance-to-wall measurements. Direct double differentiation of the distance signal is intentionally too noisy, and high-lag smoothing loses score.",
+    "success_conditions": {
+      "rms_acceleration_error_mps2": 1.0,
+      "mean_abs_acceleration_error_mps2": 0.82,
+      "phase_lag_sec": 0.28,
+      "min_acceleration_correlation": 0.84,
+      "timeout_sec": 14.0
+    },
+    "scoring": {
+      "rms_accuracy": "40 points for low RMS acceleration error after estimator warmup",
+      "mean_accuracy": "22 points for low mean absolute acceleration error",
+      "phase": "18 points for low phase lag relative to the hidden acceleration trace",
+      "correlation": "15 points for tracking the acceleration waveform",
+      "baseline": "5 points for outperforming raw double differentiation and a trailing moving-average baseline"
+    },
+    "defaults": {
+      "runner": "kalman_acceleration_estimation",
+      "evaluation_seed": 29,
+      "dt_sec": 0.02,
+      "max_steps": 700,
+      "render_interval_sec": 0.1,
+      "wall_position_m": 3.7,
+      "distance_noise_std_m": 0.035,
+      "distance_quantization_m": 0.002,
+      "distance_bias_range_m": 0.015,
+      "warmup_sec": 0.8,
+      "phase_lag_search_sec": 0.5,
+      "moving_average_baseline_window_steps": 31
+    }
+  },
+  {
     "id": "inverse_kinematics_1",
     "title": "Inverse Kinematics 1: Planar Arm",
     "difficulty": "beginner",

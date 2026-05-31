@@ -5,6 +5,7 @@ from pathlib import Path
 from roborank_envs.catalog import get_challenge_spec
 from roborank_envs.models import ChallengeSpec, RunResult
 from roborank_envs.policy_loader import load_policy
+from roborank_envs.simulation.acceleration_estimation import AccelerationEstimationRunner
 from roborank_envs.simulation.cart_pole import CartPoleRunner
 from roborank_envs.simulation.diff_drive import (
     DifferentialDriveOdometryRunner,
@@ -56,6 +57,8 @@ def _runner_for_challenge(challenge: ChallengeSpec, *, runner_name: str) -> obje
         return CartPoleRunner(challenge)
     if runner_name == "trapezoidal_motion_profile":
         return MotionProfileRunner(challenge)
+    if runner_name == "kalman_acceleration_estimation":
+        return AccelerationEstimationRunner(challenge)
     if runner_name == "quadrotor_gate_sequence":
         return QuadrotorGateRunner(challenge)
     if runner_name == "imu_collision":
